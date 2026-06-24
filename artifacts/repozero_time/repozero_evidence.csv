@@ -1,0 +1,2 @@
+subset,library,repo_url,first_commit,first_date,last_commit_used,last_date,duration_days,source_for_repo_url,source_for_last_commit,notes
+Py2JS,fractions,https://github.com/python/cpython,7f777ed95a19224294949e1b4ce56bbffcb1fe9f,1990-08-09,629da5c914b4407e01c1dc06cbcbd8dce825fef3,2026-05-26,13074,RepoZero-Py2JS HF dataset folder + test import from Python stdlib fractions,Fallback to current default-branch HEAD; no pinned snapshot commit found in released RepoZero metadata/README.,"This is stdlib, so the upstream repo is CPython."

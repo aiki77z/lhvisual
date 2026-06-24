@@ -8,6 +8,28 @@
       content="A benchmark leaderboard and technical blog scaffold for coding agent evaluations."
     />
     <title>Longhorizenbench</title>
+    <script>
+      (function () {
+        var url = new URL(window.location.href);
+        var route = url.searchParams.get("p");
+
+        if (!route) {
+          return;
+        }
+
+        var query = url.searchParams.get("q");
+        var hash = url.searchParams.get("h");
+        var basePrefix =
+          url.pathname === "/" ? "" : url.pathname.replace(/\/$/, "");
+        var nextUrl =
+          basePrefix +
+          route +
+          (query ? "?" + query : "") +
+          (hash ? "#" + hash : "");
+
+        window.history.replaceState(null, "", nextUrl || "/");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,4 +1,5 @@
 import type { BlogPost } from "../../data/posts";
+import { toAppPath } from "../../lib/site";
 
 type BlogPostCardProps = {
   post: BlogPost;
@@ -9,7 +10,7 @@ export function BlogPostCard({ post }: BlogPostCardProps) {
     <article className="post-card">
       <p className="article-date">{post.date}</p>
       <h2>
-        <a href={`/blog/${post.slug}`}>{post.title}</a>
+        <a href={toAppPath(`/blog/${post.slug}`)}>{post.title}</a>
       </h2>
       <p>{post.excerpt}</p>
       <span>By {post.authors.join(", ")}</span>

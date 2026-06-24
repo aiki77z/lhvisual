@@ -1,3 +1,5 @@
+import { toAppPath } from "../../lib/site";
+
 const navItems = [
   { label: "Leaderboard", href: "/leaderboard" },
   { label: "Blog", href: "/blog" },
@@ -9,7 +11,11 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="site-container header-inner">
-        <a className="brand" href="/" aria-label="Longhorizenbench home">
+        <a
+          className="brand"
+          href={toAppPath("/")}
+          aria-label="Longhorizenbench home"
+        >
           <span className="brand-mark" aria-hidden="true">
             LH
           </span>
@@ -17,7 +23,7 @@ export function SiteHeader() {
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
           {navItems.map((item) => (
-            <a key={item.label} href={item.href}>
+            <a key={item.label} href={toAppPath(item.href)}>
               {item.label}
             </a>
           ))}
