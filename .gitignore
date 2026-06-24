@@ -29,3 +29,6 @@ vite.config.js
 vite.config.d.ts
 artifacts/
 tmp_base58_test/
+scripts/
+rq1_citation_replacement.tex
+rq1_reference_additions.bib
