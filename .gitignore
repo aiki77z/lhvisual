@@ -27,3 +27,5 @@ Thumbs.db
 # Generated artifacts
 vite.config.js
 vite.config.d.ts
+artifacts/
+tmp_base58_test/
