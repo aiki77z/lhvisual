@@ -9,7 +9,9 @@ import {
   stats,
 } from "../../data/paper";
 import { toAppPath } from "../../lib/site";
+import { Wordmark } from "../brand/Wordmark";
 import { HeroDag } from "./HeroDag";
+import { HeroLinks } from "./HeroLinks";
 
 export function HomePage() {
   return (
@@ -19,8 +21,8 @@ export function HomePage() {
         <div className="hero-inner">
           <p className="eyebrow">Long-horizon coding benchmark</p>
           <h1>
-            <span className="accent">LoopsBench</span>: From Harness Engineering
-            to Loop Engineering in Coding Agent Evaluation
+            <Wordmark className="wordmark-hero" />: From Harness Engineering to
+            Loop Engineering in Coding Agent Evaluation
           </h1>
           <p className="hero-sub">
             A long-horizon benchmark for loop engineering. Each task is a
@@ -37,20 +39,14 @@ export function HomePage() {
             ))}
           </p>
           <p className="affil">{affiliations}</p>
-          <div className="hero-actions">
-            <a className="btn btn-primary" href={paperUrl}>
-              Paper
-            </a>
-            <a className="btn" href={repoUrl}>
-              GitHub
-            </a>
-            <a className="btn" href={datasetUrl}>
-              Dataset
-            </a>
-            <a className="btn" href={toAppPath("/leaderboard")}>
-              Leaderboard
-            </a>
-          </div>
+          <HeroLinks
+            links={[
+              { label: "Paper", href: paperUrl },
+              { label: "GitHub", href: repoUrl },
+              { label: "Dataset", href: datasetUrl },
+              { label: "Leaderboard", href: toAppPath("/leaderboard") },
+            ]}
+          />
 
           <div className="stat-strip">
             {stats.map((s) => (

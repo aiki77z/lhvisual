@@ -1,23 +1,24 @@
 :root {
   color-scheme: dark;
-  --bg: #07090c;
-  --bg-2: #0a0d11;
-  --panel: #10151b;
-  --panel-2: #141b23;
-  --panel-muted: #0d1217;
-  --text: #e8edf2;
-  --muted: #93a1b0;
-  --faint: #66727f;
-  --border: #1e2832;
-  --border-strong: #2c3a47;
-  --accent: #3ddc97;
-  --accent-2: #2bc8cf;
-  --accent-soft: rgba(61, 220, 151, 0.12);
-  --accent-line: rgba(61, 220, 151, 0.35);
-  --success: #3ddc97;
-  --info: #59b6ff;
-  --warning: #f0b454;
-  --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --bg: #05070d;
+  --bg-2: #080b14;
+  --panel: #0d1320;
+  --panel-2: #121a2b;
+  --panel-muted: #0a0f1a;
+  --text: #e7ecf5;
+  --muted: #8b97ad;
+  --faint: #5d6885;
+  --border: #1b2436;
+  --border-strong: #2a3650;
+  --accent: #4d8dff;
+  --accent-2: #6ea8ff;
+  --accent-deep: #2f6bdc;
+  --accent-soft: rgba(77, 141, 255, 0.12);
+  --accent-line: rgba(77, 141, 255, 0.34);
+  --success: #4d8dff;
+  --info: #6ea8ff;
+  --warning: #e0a64a;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
   --mono: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   --display: "Space Grotesk", "Inter", system-ui, sans-serif;
   font-family:
@@ -36,10 +37,10 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(900px 500px at 85% -10%, rgba(61, 220, 151, 0.08), transparent 60%),
-    radial-gradient(700px 500px at 0% 0%, rgba(43, 200, 207, 0.06), transparent 55%),
-    linear-gradient(rgba(120, 200, 170, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(120, 200, 170, 0.025) 1px, transparent 1px),
+    radial-gradient(900px 500px at 85% -10%, rgba(77, 141, 255, 0.10), transparent 60%),
+    radial-gradient(700px 500px at 0% 0%, rgba(47, 107, 220, 0.08), transparent 55%),
+    linear-gradient(rgba(110, 140, 200, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(110, 140, 200, 0.022) 1px, transparent 1px),
     var(--bg);
   background-size: auto, auto, 34px 34px, 34px 34px;
 }
@@ -108,16 +109,34 @@ button {
 
 .brand-mark {
   display: grid;
-  width: 30px;
-  height: 30px;
   place-items: center;
-  border: 1px solid var(--accent-line);
-  border-radius: 7px;
-  background: var(--accent-soft);
   color: var(--accent);
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.06rem;
+  letter-spacing: -0.01em;
+}
+
+.wordmark-inf {
+  margin: 0 -1px;
+  color: var(--accent);
+  transform: translateY(1px);
+}
+
+.infinity-trace {
+  stroke-dasharray: 22 78;
+  animation: infloop 3.4s linear infinite;
+}
+
+@keyframes infloop {
+  to {
+    stroke-dashoffset: -100;
+  }
 }
 
 .site-nav,
@@ -234,38 +253,103 @@ p {
   font-size: 0.9rem;
 }
 
-.hero-actions {
-  display: flex;
+/* ---------- Hero links: sliding spotlight ---------- */
+.hero-links {
+  position: relative;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 30px;
+  gap: 2px;
+  margin-top: 32px;
+  padding: 5px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(13, 19, 32, 0.5);
+  backdrop-filter: blur(6px);
 }
 
+.hero-links-spot {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(77, 141, 255, 0.18), rgba(47, 107, 220, 0.1));
+  border: 1px solid var(--accent-line);
+  box-shadow:
+    0 8px 22px rgba(20, 60, 140, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    transform 0.46s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.46s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 0;
+}
+
+.hero-link {
+  position: relative;
+  z-index: 1;
+  padding: 11px 22px;
+  border-radius: 10px;
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
+  color: var(--faint);
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.hero-link:hover {
+  text-decoration: none;
+}
+
+.hero-link.is-active {
+  color: #eef4ff;
+  transform: translateY(-1px);
+}
+
+/* refined CTA button (not boxy) */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  padding: 0 20px;
+  padding: 0 22px;
+  border-radius: 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--panel);
+  background: transparent;
   color: var(--text);
-  font-weight: 600;
-  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+  font-family: var(--display);
+  font-weight: 500;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s, color 0.2s;
 }
 
 .btn:hover {
   text-decoration: none;
-  border-color: var(--accent-line);
-  background: var(--panel-2);
+  border-color: var(--accent);
+  color: #eef4ff;
   transform: translateY(-1px);
 }
 
 .btn-primary {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  background: linear-gradient(180deg, rgba(77, 141, 255, 0.16), rgba(47, 107, 220, 0.08));
+  color: var(--accent-2);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, rgba(77, 141, 255, 0.24), rgba(47, 107, 220, 0.12));
+}
+
+/* hero wordmark (large, in the title) */
+.wordmark-hero {
+  font-size: inherit;
+  font-weight: 600;
   color: var(--accent);
+}
+
+.wordmark-hero .wordmark-inf {
+  width: 0.92em;
+  height: 0.92em;
+  transform: translateY(0.06em);
 }
 
 /* ---------- Stat strip ---------- */

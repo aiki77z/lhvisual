@@ -1,54 +1,53 @@
 import { useEffect, useRef } from "react";
 
-// Canvas backdrop: PR particles scatter in, coalesce into a dependency DAG,
-// sweep-color in topological order (build then test), then disperse and loop.
-// Represents constructing tasks and running their tests. Decorative only.
+// Canvas backdrop: PR particles drift in from the left and assemble a
+// dependency DAG layer by layer (left to right), straight edges snapping into
+// place as each layer lands. Once built, a topological pass sweeps the nodes
+// (build, then a brighter test pulse), then the graph dissolves and the cycle
+// repeats. Represents constructing tasks and running their tests. Decorative.
 
 type Node = {
   layer: number;
-  tx: number; // target x (0..1 of width)
-  ty: number; // target y (0..1 of height)
-  px: number; // current x (px)
-  py: number; // current y (px)
-  sx: number; // scatter origin x (px)
+  idxInLayer: number;
+  tx: number; // target x (0..1)
+  ty: number; // target y (0..1)
+  sx: number; // scatter origin x (px, off-screen left)
   sy: number; // scatter origin y (px)
   order: number; // topological index
   r: number;
+  jitter: number;
 };
 
 type Edge = { a: number; b: number };
 
+const LAYERS = [2, 3, 4, 3, 4, 2];
+
 function buildGraph() {
-  // Layered DAG: nodes per layer, edges only forward.
-  const layers = [2, 3, 4, 3, 4, 2];
   const nodes: Node[] = [];
   const layerStart: number[] = [];
-  layers.forEach((count, li) => {
+  LAYERS.forEach((count, li) => {
     layerStart[li] = nodes.length;
     for (let i = 0; i < count; i++) {
-      const tx = (li + 1) / (layers.length + 1);
-      const ty = (i + 1) / (count + 1);
       nodes.push({
         layer: li,
-        tx,
-        ty,
-        px: 0,
-        py: 0,
+        idxInLayer: i,
+        tx: (li + 1) / (LAYERS.length + 1),
+        ty: (i + 1) / (count + 1),
         sx: 0,
         sy: 0,
         order: 0,
-        r: 3.2 + (i % 2) * 0.8,
+        r: 3 + (i % 2) * 0.9,
+        jitter: 0,
       });
     }
   });
   const edges: Edge[] = [];
-  for (let li = 0; li < layers.length - 1; li++) {
+  for (let li = 0; li < LAYERS.length - 1; li++) {
     const aFrom = layerStart[li];
-    const aTo = layerStart[li] + layers[li];
+    const aTo = layerStart[li] + LAYERS[li];
     const bFrom = layerStart[li + 1];
-    const bTo = layerStart[li + 1] + layers[li + 1];
+    const bTo = layerStart[li + 1] + LAYERS[li + 1];
     for (let a = aFrom; a < aTo; a++) {
-      // each node connects to 1-2 nodes in next layer
       const k = 1 + ((a + li) % 2);
       for (let j = 0; j < k; j++) {
         const b = bFrom + ((a + j) % (bTo - bFrom));
@@ -56,21 +55,25 @@ function buildGraph() {
       }
     }
   }
-  // topological order = order of creation (already layered)
   nodes.forEach((n, i) => (n.order = i));
-  return { nodes, edges };
+  return { nodes, edges, layerStart };
 }
 
-const ACCENT = [61, 220, 151]; // green
-const TEST = [89, 182, 255]; // blue
-const IDLE = [120, 140, 158];
+const SLATE = [120, 138, 170];
+const AZURE = [77, 141, 255];
+const TESTC = [120, 196, 255];
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
-
+function clamp01(t: number) {
+  return t < 0 ? 0 : t > 1 ? 1 : t;
+}
 function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+function easeOut(t: number) {
+  return 1 - Math.pow(1 - t, 3);
 }
 
 export function HeroDag() {
@@ -93,13 +96,21 @@ export function HeroDag() {
     let H = 0;
     let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    // floating dust particles for ambient depth
-    const dust = Array.from({ length: 46 }, (_, i) => ({
+    const dust = Array.from({ length: 40 }, (_, i) => ({
       x: Math.random(),
       y: Math.random(),
       z: 0.3 + Math.random() * 0.7,
       seed: i,
     }));
+
+    function assignOrigins() {
+      nodes.forEach((n) => {
+        // all enter from the left, vertically near their target, staggered depth
+        n.sx = -60 - Math.random() * 260 - n.layer * 30;
+        n.sy = n.ty * H + (Math.random() - 0.5) * H * 0.25;
+        n.jitter = (Math.random() - 0.5) * 6;
+      });
+    }
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
@@ -109,120 +120,92 @@ export function HeroDag() {
       canvas.width = Math.max(1, Math.floor(W * dpr));
       canvas.height = Math.max(1, Math.floor(H * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // assign scatter origins (random, edge-biased) and seed positions
-      nodes.forEach((n) => {
-        const edge = Math.random();
-        n.sx = edge < 0.5 ? -40 - Math.random() * 120 : W + 40 + Math.random() * 120;
-        n.sy = Math.random() * H;
-        n.px = n.tx * W;
-        n.py = n.ty * H;
-      });
+      assignOrigins();
     }
     resize();
     window.addEventListener("resize", resize);
 
-    // Phase timeline (seconds): coalesce -> build sweep -> test sweep -> hold -> disperse
-    const T = { coalesce: 2.6, build: 2.4, test: 2.0, hold: 0.8, disperse: 1.8 };
-    const CYCLE = T.coalesce + T.build + T.test + T.hold + T.disperse;
+    // Slower timeline (seconds). Assemble dominates so the build rhythm reads.
+    const T = { assemble: 6.0, build: 3.2, test: 2.6, hold: 1.2, disperse: 2.4 };
+    const CYCLE = T.assemble + T.build + T.test + T.hold + T.disperse;
+    const NL = LAYERS.length;
     let start = performance.now();
     let raf = 0;
 
-    function nodeColor(n: Node, phase: string, p: number) {
-      // p is phase progress 0..1; returns [r,g,b,alpha]
-      const N = nodes.length;
-      const frac = (n.order + 1) / N;
-      if (phase === "coalesce") return [...IDLE, 0.9] as number[];
-      if (phase === "build") {
-        const lit = p >= frac - 0.04;
-        const mix = lit ? Math.min(1, (p - (frac - 0.04)) / 0.12) : 0;
-        return [
-          lerp(IDLE[0], ACCENT[0], mix),
-          lerp(IDLE[1], ACCENT[1], mix),
-          lerp(IDLE[2], ACCENT[2], mix),
-          1,
-        ];
-      }
-      if (phase === "test") {
-        const hit = p >= frac - 0.04;
-        const mix = hit ? Math.min(1, (p - (frac - 0.04)) / 0.1) : 0;
-        // flash to blue then settle back toward green
-        const back = Math.max(0, mix - 0.5) * 2;
-        const cr = lerp(lerp(ACCENT[0], TEST[0], mix), ACCENT[0], back);
-        const cg = lerp(lerp(ACCENT[1], TEST[1], mix), ACCENT[1], back);
-        const cb = lerp(lerp(ACCENT[2], TEST[2], mix), ACCENT[2], back);
-        return [cr, cg, cb, 1];
-      }
-      return [...ACCENT, 1] as number[];
+    // per-node arrival progress during assemble: layers land left to right
+    function arrival(n: Node, p: number) {
+      // p in 0..1 over the whole assemble phase
+      const span = 1 / (NL + 0.6); // each layer gets a window
+      const layerStartT = (n.layer / NL) * (1 - span * 0.4);
+      const local = clamp01((p - layerStartT) / span);
+      return easeOut(local);
     }
 
     function frame(now: number) {
       const elapsed = ((now - start) / 1000) % CYCLE;
-      let phase = "coalesce";
+      let phase: "assemble" | "build" | "test" | "hold" | "disperse" =
+        "assemble";
       let p = 0;
-      let settle = 1; // 0 scattered, 1 fully on-graph
-      if (elapsed < T.coalesce) {
-        phase = "coalesce";
-        p = elapsed / T.coalesce;
-        settle = easeInOut(p);
-      } else if (elapsed < T.coalesce + T.build) {
+      if (elapsed < T.assemble) {
+        phase = "assemble";
+        p = elapsed / T.assemble;
+      } else if (elapsed < T.assemble + T.build) {
         phase = "build";
-        p = (elapsed - T.coalesce) / T.build;
-        settle = 1;
-      } else if (elapsed < T.coalesce + T.build + T.test) {
+        p = (elapsed - T.assemble) / T.build;
+      } else if (elapsed < T.assemble + T.build + T.test) {
         phase = "test";
-        p = (elapsed - T.coalesce - T.build) / T.test;
-        settle = 1;
-      } else if (elapsed < T.coalesce + T.build + T.test + T.hold) {
+        p = (elapsed - T.assemble - T.build) / T.test;
+      } else if (elapsed < T.assemble + T.build + T.test + T.hold) {
         phase = "hold";
         p = 1;
-        settle = 1;
       } else {
         phase = "disperse";
-        p = (elapsed - T.coalesce - T.build - T.test - T.hold) / T.disperse;
-        settle = 1 - easeInOut(p);
+        p = (elapsed - T.assemble - T.build - T.test - T.hold) / T.disperse;
       }
 
       ctx.clearRect(0, 0, W, H);
 
       // ambient dust
       const tsec = now / 1000;
-      ctx.save();
       for (const d of dust) {
-        const dx = (d.x + Math.sin(tsec * 0.08 + d.seed) * 0.02) * W;
-        const dy =
-          ((d.y + tsec * 0.012 * d.z) % 1) * H;
-        ctx.globalAlpha = 0.10 * d.z;
-        ctx.fillStyle = "rgb(150,170,185)";
+        const dx = (d.x + Math.sin(tsec * 0.06 + d.seed) * 0.02) * W;
+        const dy = ((d.y + tsec * 0.01 * d.z) % 1) * H;
+        ctx.globalAlpha = 0.09 * d.z;
+        ctx.fillStyle = "rgb(130,150,185)";
         ctx.beginPath();
         ctx.arc(dx, dy, 0.8 * d.z, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.restore();
+      ctx.globalAlpha = 1;
 
-      // node positions interpolate scatter <-> target
-      const pos = nodes.map((n) => ({
-        x: lerp(n.sx, n.tx * W, settle),
-        y: lerp(n.sy, n.ty * H, settle),
+      // node settle factor (0 = at left origin, 1 = on graph)
+      const settle = nodes.map((n) => {
+        if (phase === "assemble") return arrival(n, p);
+        if (phase === "disperse") return 1 - easeInOut(p);
+        return 1;
+      });
+
+      const pos = nodes.map((n, i) => ({
+        x: lerp(n.sx, n.tx * W, settle[i]),
+        y: lerp(n.sy, n.ty * H + n.jitter, settle[i]),
       }));
 
-      // edges (fade in with settle; flow dashes during build/test)
+      // straight edges; appear only when both endpoints are mostly settled
       ctx.lineWidth = 1;
       for (const e of edges) {
+        const sa = settle[e.a];
+        const sb = settle[e.b];
+        const ea = Math.min(sa, sb);
+        const alpha = clamp01((ea - 0.6) / 0.4) * 0.55;
+        if (alpha <= 0) continue;
         const a = pos[e.a];
         const b = pos[e.b];
-        const edgeAlpha = Math.max(0, (settle - 0.55) / 0.45) * 0.5;
-        if (edgeAlpha <= 0) continue;
-        const lit =
-          (phase === "build" || phase === "test" || phase === "hold") &&
-          true;
-        ctx.strokeStyle = lit
-          ? `rgba(61,220,151,${edgeAlpha})`
-          : `rgba(110,130,150,${edgeAlpha})`;
+        const lit = phase === "build" || phase === "test" || phase === "hold";
+        const c = lit ? AZURE : SLATE;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
-        // gentle curve
-        const mx = (a.x + b.x) / 2;
-        ctx.bezierCurveTo(mx, a.y, mx, b.y, b.x, b.y);
+        ctx.lineTo(b.x, b.y);
         ctx.stroke();
       }
 
@@ -230,27 +213,55 @@ export function HeroDag() {
       for (let i = 0; i < nodes.length; i++) {
         const n = nodes[i];
         const pp = pos[i];
-        const [r, g, bl, al] = nodeColor(n, phase, p);
-        const alpha = al * (0.35 + 0.65 * settle);
-        // glow for freshly-lit nodes
+        const s = settle[i];
         const frac = (n.order + 1) / nodes.length;
-        const fresh =
-          (phase === "build" && Math.abs(p - frac) < 0.06) ||
-          (phase === "test" && Math.abs(p - frac) < 0.05);
+
+        let col = SLATE;
+        let fresh = false;
+        if (phase === "build") {
+          const mix = clamp01((p - (frac - 0.04)) / 0.12);
+          col = [
+            lerp(SLATE[0], AZURE[0], mix),
+            lerp(SLATE[1], AZURE[1], mix),
+            lerp(SLATE[2], AZURE[2], mix),
+          ];
+          fresh = Math.abs(p - frac) < 0.06;
+        } else if (phase === "test") {
+          const mix = clamp01((p - (frac - 0.04)) / 0.1);
+          const back = Math.max(0, mix - 0.5) * 2;
+          col = [
+            lerp(lerp(AZURE[0], TESTC[0], mix), AZURE[0], back),
+            lerp(lerp(AZURE[1], TESTC[1], mix), AZURE[1], back),
+            lerp(lerp(AZURE[2], TESTC[2], mix), AZURE[2], back),
+          ];
+          fresh = Math.abs(p - frac) < 0.05;
+        } else if (phase === "hold") {
+          col = AZURE;
+        } else if (phase === "assemble") {
+          // tint toward azure as it snaps in
+          col = [
+            lerp(SLATE[0], AZURE[0], s * 0.5),
+            lerp(SLATE[1], AZURE[1], s * 0.5),
+            lerp(SLATE[2], AZURE[2], s * 0.5),
+          ];
+          fresh = s > 0.82 && s < 0.999;
+        }
+
+        const alpha = 0.3 + 0.7 * s;
         if (fresh) {
-          const grd = ctx.createRadialGradient(pp.x, pp.y, 0, pp.x, pp.y, 18);
-          grd.addColorStop(0, `rgba(${r | 0},${g | 0},${bl | 0},0.5)`);
+          const grd = ctx.createRadialGradient(pp.x, pp.y, 0, pp.x, pp.y, 20);
+          grd.addColorStop(0, `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},0.5)`);
           grd.addColorStop(1, "rgba(0,0,0,0)");
           ctx.fillStyle = grd;
           ctx.beginPath();
-          ctx.arc(pp.x, pp.y, 18, 0, Math.PI * 2);
+          ctx.arc(pp.x, pp.y, 20, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.fillStyle = `rgba(${r | 0},${g | 0},${bl | 0},${alpha})`;
+        ctx.fillStyle = `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${alpha})`;
         ctx.beginPath();
         ctx.arc(pp.x, pp.y, n.r + (fresh ? 1.4 : 0), 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = `rgba(${r | 0},${g | 0},${bl | 0},${alpha * 0.6})`;
+        ctx.strokeStyle = `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${alpha * 0.55})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(pp.x, pp.y, n.r + 3, 0, Math.PI * 2);
@@ -261,8 +272,7 @@ export function HeroDag() {
     }
 
     if (reduce) {
-      // static settled graph, single paint
-      start = performance.now() - (T.coalesce + T.build + T.test);
+      start = performance.now() - (T.assemble + T.build + T.test);
       frame(performance.now());
     } else {
       raf = requestAnimationFrame(frame);

@@ -1,3 +1,5 @@
+import { InfinityMark } from "../brand/InfinityMark";
+import { Wordmark } from "../brand/Wordmark";
 import { repoUrl } from "../../data/paper";
 import { getCurrentAppPath, toAppPath } from "../../lib/site";
 
@@ -16,9 +18,9 @@ export function SiteHeader() {
       <div className="site-container header-inner">
         <a className="brand" href={toAppPath("/")} aria-label="LoopsBench home">
           <span className="brand-mark" aria-hidden="true">
-            LB
+            <InfinityMark size={26} animate />
           </span>
-          <span>LoopsBench</span>
+          <Wordmark />
         </a>
         <nav className="site-nav" aria-label="Primary navigation">
           {navItems.map((item) => (
