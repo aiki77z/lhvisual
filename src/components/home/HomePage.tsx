@@ -17,7 +17,7 @@ export function HomePage() {
       <section className="hero">
         <HeroDag />
         <div className="hero-inner">
-          <p className="eyebrow">EMNLP · benchmark</p>
+          <p className="eyebrow">Long-horizon coding benchmark</p>
           <h1>
             <span className="accent">LoopsBench</span>: From Harness Engineering
             to Loop Engineering in Coding Agent Evaluation

@@ -18,11 +18,14 @@
   --info: #59b6ff;
   --warning: #f0b454;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-  --mono: "Cascadia Mono", "SFMono-Regular", "JetBrains Mono", Consolas, monospace;
+  --mono: "JetBrains Mono", "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --display: "Space Grotesk", "Inter", system-ui, sans-serif;
   font-family:
-    "IBM Plex Sans", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    "Inter", system-ui, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -98,7 +101,8 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
+  font-family: var(--display);
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
@@ -150,49 +154,41 @@ p {
 
 .eyebrow,
 .article-date {
-  margin: 0 0 10px;
+  margin: 0 0 14px;
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 0.74rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 22px;
+  height: 1px;
+  margin-right: 10px;
+  vertical-align: middle;
+  background: var(--accent-line);
 }
 
 /* ---------- Hero ---------- */
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 88px 0 64px;
+  padding: 104px 0 72px;
 }
 
 .hero-canvas {
   position: absolute;
-  inset: 0;
+  inset: -10% -2% 0 -2%;
+  width: 104%;
+  height: 110%;
   z-index: 0;
   pointer-events: none;
-  mask-image: radial-gradient(120% 90% at 70% 25%, #000 35%, transparent 80%);
-}
-
-.hero-canvas .edge {
-  stroke: var(--accent-line);
-  stroke-width: 1;
-  opacity: 0.5;
-}
-
-.hero-canvas .edge.flow {
-  stroke-dasharray: 4 10;
-  animation: dagflow 5s linear infinite;
-}
-
-.hero-canvas .node {
-  fill: var(--panel-2);
-  stroke: var(--accent-line);
-  stroke-width: 1.2;
-}
-
-.hero-canvas .node.pulse {
-  animation: nodepulse 4.5s ease-in-out infinite;
+  mask-image: radial-gradient(130% 100% at 72% 30%, #000 30%, transparent 78%);
+  -webkit-mask-image: radial-gradient(130% 100% at 72% 30%, #000 30%, transparent 78%);
 }
 
 .hero-inner {
@@ -202,10 +198,12 @@ p {
 }
 
 .hero h1 {
-  margin: 14px 0 18px;
-  font-size: clamp(2.5rem, 6vw, 4.4rem);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+  margin: 16px 0 20px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(2.6rem, 6.2vw, 4.6rem);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
 }
 
 .hero h1 .accent {
@@ -306,8 +304,10 @@ p {
 }
 
 .home-section h2 {
-  font-size: clamp(1.5rem, 3vw, 2.1rem);
-  letter-spacing: -0.03em;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  letter-spacing: -0.025em;
   margin-bottom: 8px;
 }
 
@@ -345,7 +345,10 @@ p {
 
 .source-card h3 {
   margin: 6px 0 8px;
-  font-size: 1.15rem;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
 }
 
 .source-card p {
@@ -370,6 +373,10 @@ p {
 
 .cta-band h2 {
   margin: 0 0 4px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+  letter-spacing: -0.02em;
 }
 
 .cta-band p {
@@ -397,7 +404,10 @@ p {
 
 .section-heading h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: -0.015em;
 }
 
 .section-heading > p {
@@ -477,34 +487,61 @@ tbody tr:hover {
 }
 
 .tabs {
-  display: flex;
-  gap: 8px;
+  position: relative;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-muted);
+}
+
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 9px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent-line);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 0;
 }
 
 .tab {
-  padding: 12px 18px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  position: relative;
+  z-index: 1;
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 9px;
   background: transparent;
   color: var(--muted);
-  font-weight: 600;
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  transition: color 0.3s ease, font-weight 0.01s;
 }
 
 .tab.active {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .tab small {
   display: block;
-  font-size: 0.7rem;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   color: var(--faint);
-  font-weight: 500;
 }
 
 .tab.active small {
-  color: var(--accent-2);
+  color: var(--accent);
 }
 
 .summary-grid {
@@ -549,8 +586,10 @@ tbody tr:hover {
 }
 
 .lb-hero h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  letter-spacing: -0.04em;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(2.1rem, 5vw, 3.1rem);
+  letter-spacing: -0.03em;
   margin-bottom: 10px;
 }
 
@@ -568,8 +607,10 @@ tbody tr:hover {
 }
 
 .article-shell h1 {
-  font-size: clamp(2.2rem, 6vw, 3.4rem);
-  letter-spacing: -0.04em;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: clamp(2.3rem, 6vw, 3.4rem);
+  letter-spacing: -0.03em;
   margin-bottom: 14px;
 }
 
@@ -578,7 +619,10 @@ tbody tr:hover {
 }
 
 .article-section h2 {
-  font-size: 1.4rem;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.45rem;
+  letter-spacing: -0.015em;
   margin-bottom: 12px;
 }
 
@@ -605,23 +649,9 @@ tbody tr:hover {
   font-weight: 600;
 }
 
-@keyframes dagflow {
-  to {
-    stroke-dashoffset: -28;
-  }
-}
-
-@keyframes nodepulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .hero-canvas .edge.flow,
-  .hero-canvas .node.pulse,
   .btn,
   .source-card {
-    animation: none;
     transition: none;
   }
 }

@@ -1,9 +1,18 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { leaderboardEntries, sweeps, type SweepName } from "../../data/leaderboard";
 import { LeaderboardTable } from "./LeaderboardTable";
 
 export function LeaderboardPage() {
   const [sweep, setSweep] = useState<SweepName>("model");
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+
+  useLayoutEffect(() => {
+    const el = tabRefs.current[sweep];
+    if (el) {
+      setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+    }
+  }, [sweep]);
 
   const entries = useMemo(
     () =>
@@ -44,12 +53,22 @@ export function LeaderboardPage() {
         ))}
       </div>
 
-      <div className="tabs">
+      <div className="tabs" role="tablist">
+        <span
+          className="tab-indicator"
+          style={{ transform: `translateX(${indicator.left}px)`, width: indicator.width }}
+          aria-hidden="true"
+        />
         {sweeps.map((s) => (
           <button
             key={s.id}
+            ref={(el) => {
+              tabRefs.current[s.id] = el;
+            }}
             className={`tab ${sweep === s.id ? "active" : ""}`}
             type="button"
+            role="tab"
+            aria-selected={sweep === s.id}
             onClick={() => setSweep(s.id)}
           >
             {s.label}
