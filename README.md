@@ -1,6 +1,6 @@
-# Longhorizenbench
+# LoopsBench
 
-Longhorizenbench is a Vite + React + TypeScript frontend scaffold for a benchmark leaderboard and technical blog.
+Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**. Vite + React + TypeScript, single-page site (home, leaderboard, about) deployed to GitHub Pages.
 
 ## Local development
 
