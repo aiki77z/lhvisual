@@ -22,7 +22,7 @@ type Node = {
   pa: number;
   pb: number;
   r: number;
-  seq: number; // position in the build sequence (0..1)
+  pOff: number; // independent lifecycle phase offset (0..1)
 };
 
 type Edge = {
@@ -30,7 +30,7 @@ type Edge = {
   b: number;
   ang: number;
   len: number;
-  seq: number;
+  pOff: number; // independent lifecycle phase offset (0..1)
 };
 
 const LAYERS = [2, 3, 4, 3, 2];
@@ -66,13 +66,12 @@ function buildGraph() {
         pa: 0,
         pb: 0,
         r: 2.8 + (i % 2) * 0.8,
-        seq: 0,
+        pOff: 0,
       });
     }
   });
 
   const edges: Edge[] = [];
-  const outEdges: number[][] = nodes.map(() => []);
   for (let li = 0; li < LAYERS.length - 1; li++) {
     const aFrom = layerStart[li];
     const aTo = layerStart[li] + LAYERS[li];
@@ -83,35 +82,24 @@ function buildGraph() {
       for (let j = 0; j < k; j++) {
         const b = bFrom + ((a + j) % (bTo - bFrom));
         if (!edges.some((e) => e.a === a && e.b === b)) {
-          const idx = edges.length;
-          edges.push({ a, b, ang: 0, len: 0, seq: 0 });
-          outEdges[a].push(idx);
+          edges.push({ a, b, ang: 0, len: 0, pOff: 0 });
         }
       }
     }
   }
 
-  // Build a topological emission order: layer by layer, nodes within a layer
-  // shuffled; after each node emit its outgoing edges (shuffled). This keeps
-  // the DAG generation valid (an edge follows its source node) while looking
-  // disordered within a layer.
-  const order: Array<{ kind: "node" | "edge"; index: number }> = [];
-  for (let li = 0; li < LAYERS.length; li++) {
-    const ids = shuffle(
-      nodes.filter((n) => n.layer === li).map((n) => n.id),
-    );
-    for (const id of ids) {
-      order.push({ kind: "node", index: id });
-      for (const ei of shuffle([...outEdges[id]])) {
-        order.push({ kind: "edge", index: ei });
-      }
-    }
-  }
-  const total = order.length;
-  order.forEach((item, i) => {
-    const s = i / total;
-    if (item.kind === "node") nodes[item.index].seq = s;
-    else edges[item.index].seq = s;
+  // Each element runs its own independent lifecycle loop at a different phase
+  // offset, so the field is always a mix of building, locked, and dissolving
+  // fragments -- there is no global build-then-teardown beat and therefore no
+  // visible loop seam. Nodes get offsets spread evenly (then jittered) so the
+  // churn stays balanced; each edge is offset just after its source node so the
+  // local "node appears, then its edge" relationship still reads.
+  const nodeIds = shuffle(nodes.map((n) => n.id));
+  nodeIds.forEach((id, i) => {
+    nodes[id].pOff = (i / nodeIds.length + (Math.random() - 0.5) * 0.04 + 1) % 1;
+  });
+  edges.forEach((e) => {
+    e.pOff = (nodes[e.a].pOff + 0.05 + Math.random() * 0.03) % 1;
   });
 
   return { nodes, edges };
@@ -137,48 +125,36 @@ function mix3(a: number[], b: number[], t: number) {
   return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
 }
 
-// Fraction of the cycle spent sweeping the build front across the sequence.
-// Each element converges over a window once the front reaches its seq.
-const BUILD_SPAN = 0.46; // 0..1 of cycle for the assembly sweep
-const CONVERGE = 0.18; // per-element converge duration (slower, smoother pull-in)
-// Teardown sweeps the same sequence order so the graph comes apart one element
-// at a time rather than all fading at once.
-const TEARDOWN_BASE = 0.64; // first element starts dissolving here
-const TEARDOWN_SPAN = 0.3; // spread of dissolve starts across the sequence
-const DISSOLVE_DUR = 0.07; // per-element in-place fade duration
-const DETACH_DUR = 0.13; // after fading, ease the point off its locked spot
+// Per-element lifecycle as fractions of that element's own local cycle. It
+// rests in "float" at both ends (u=0 and u=1) so each loop wraps seamlessly,
+// and spends a good share of the cycle floating so that, with phase offsets
+// spread across all elements, the field is always a mix of states.
+const T_CONVERGE_IN = 0.1; // float -> converge starts
+const T_LOCKED = 0.26; // fully locked from here
+const T_DISSOLVE = 0.56; // start fading in place
+const T_DETACH = 0.64; // start easing off the spot
+const T_FLOAT = 0.8; // fully floating again from here
 
-// Returns the element's lifecycle given the global cycle phase g (0..1) and the
-// element's sequence position seq (0..1). lock is 0 when the element floats
-// freely and 1 when it is locked on the graph; it only ever changes smoothly,
-// so an element never teleports.
-// Timeline: float -> converge (build front) -> locked (node tests/passes)
-//           -> dissolve in place (fade, lock held) -> detach (ease lock 1->0
-//           while faded, drifting off its spot) -> float again.
-function elementState(g: number, seq: number, isNode: boolean) {
-  const t0 = seq * BUILD_SPAN;
-  const tLockStart = t0 + CONVERGE;
-  const dissolveStart = TEARDOWN_BASE + seq * TEARDOWN_SPAN;
-  const dissolveEnd = dissolveStart + DISSOLVE_DUR;
-  const detachEnd = dissolveEnd + DETACH_DUR;
-
-  let lock: number; // 0 float pos, 1 target pos
+// u is the element's local phase (0..1). lock is 0 floating, 1 locked; it only
+// changes smoothly, so an element never teleports and the loop has no seam.
+function elementState(u: number, isNode: boolean) {
+  let lock: number;
   let phase: "float" | "converge" | "locked" | "dissolve" | "detach";
 
-  if (g < t0) {
+  if (u < T_CONVERGE_IN) {
     lock = 0;
     phase = "float";
-  } else if (g < tLockStart) {
-    lock = smooth((g - t0) / CONVERGE);
+  } else if (u < T_LOCKED) {
+    lock = smooth((u - T_CONVERGE_IN) / (T_LOCKED - T_CONVERGE_IN));
     phase = "converge";
-  } else if (g < dissolveStart) {
+  } else if (u < T_DISSOLVE) {
     lock = 1;
     phase = "locked";
-  } else if (g < dissolveEnd) {
+  } else if (u < T_DETACH) {
     lock = 1; // hold shape; fade in place
     phase = "dissolve";
-  } else if (g < detachEnd) {
-    lock = 1 - smooth((g - dissolveEnd) / DETACH_DUR); // ease off its spot
+  } else if (u < T_FLOAT) {
+    lock = 1 - smooth((u - T_DETACH) / (T_FLOAT - T_DETACH)); // ease off the spot
     phase = "detach";
   } else {
     lock = 0;
@@ -199,8 +175,7 @@ function elementState(g: number, seq: number, isNode: boolean) {
     alpha = lerp(isNode ? 0.5 : 0.16, isNode ? 0.95 : 0.5, t);
   } else if (phase === "locked") {
     if (isNode) {
-      // local time inside the locked window for test/pass
-      const w = (g - tLockStart) / (dissolveStart - tLockStart); // 0..1
+      const w = (u - T_LOCKED) / (T_DISSOLVE - T_LOCKED); // 0..1 within locked
       if (w < 0.45) {
         color = LIT;
         alpha = 0.95;
@@ -220,14 +195,13 @@ function elementState(g: number, seq: number, isNode: boolean) {
       alpha = 0.5;
     }
   } else if (phase === "dissolve") {
-    // fade + lighten in place, no shape change
-    const t = smooth((g - dissolveStart) / DISSOLVE_DUR);
+    const t = smooth((u - T_DISSOLVE) / (T_DETACH - T_DISSOLVE));
     const from = isNode ? PASS : [92, 106, 136];
     color = mix3(from, FADE, t);
     alpha = lerp(isNode ? 0.95 : 0.5, isNode ? 0.4 : 0.18, t);
   } else {
     // detach: already faded; drift off toward the float state
-    const t = smooth((g - dissolveEnd) / DETACH_DUR);
+    const t = smooth((u - T_DETACH) / (T_FLOAT - T_DETACH));
     color = FADE;
     alpha = lerp(isNode ? 0.4 : 0.18, isNode ? 0.5 : 0.16, t);
   }
@@ -291,7 +265,7 @@ export function HeroDag() {
 
     function nodePos(n: Node, tsec: number) {
       const g = ((tsec / CYCLE) % 1 + 1) % 1;
-      const st = elementState(g, n.seq, true);
+      const st = elementState((g + n.pOff) % 1, true);
       // continuous wander centered on the target; contribution scales with
       // (1 - lock) so the point sits exactly on target when locked and drifts
       // smoothly off the same spot when released -> never teleports
@@ -322,7 +296,7 @@ export function HeroDag() {
       // edge fragments
       ctx.lineCap = "round";
       for (const e of edges) {
-        const st = elementState(g, e.seq, false);
+        const st = elementState((g + e.pOff) % 1, false);
         const a = np[e.a];
         const b = np[e.b];
         // floating segment rides near the midpoint of its (already drifting)
