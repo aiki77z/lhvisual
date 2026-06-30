@@ -56,7 +56,9 @@ function buildGraph() {
         id,
         layer: li,
         tx: (li + 1) / (LAYERS.length + 1),
-        ty: (i + 1) / (count + 1),
+        // compress vertical spread into a centered band so inter-layer edges
+        // run flatter and the graph reads more cleanly
+        ty: 0.2 + ((i + 1) / (count + 1)) * 0.6,
         fx: 0,
         fy: 0,
         pa: 0,
@@ -243,7 +245,7 @@ export function HeroDag() {
     function assignFloat() {
       nodes.forEach((n) => {
         n.fx = n.tx * 0.82 + (Math.random() - 0.5) * 0.26;
-        n.fy = clamp01(n.ty + (Math.random() - 0.5) * 0.45);
+        n.fy = clamp01(n.ty + (Math.random() - 0.5) * 0.32);
         n.pa = Math.random() * Math.PI * 2;
         n.pb = Math.random() * Math.PI * 2;
       });
@@ -251,8 +253,9 @@ export function HeroDag() {
         const na = nodes[e.a];
         const nb = nodes[e.b];
         e.fx = (na.fx + nb.fx) / 2 + (Math.random() - 0.5) * 0.18;
-        e.fy = (na.fy + nb.fy) / 2 + (Math.random() - 0.5) * 0.18;
-        e.ang = Math.random() * Math.PI;
+        e.fy = (na.fy + nb.fy) / 2 + (Math.random() - 0.5) * 0.16;
+        // keep floating segments shallow (near horizontal, +/- ~32deg)
+        e.ang = (Math.random() - 0.5) * 1.12;
         e.len = 0.05 + Math.random() * 0.05;
         e.drift = Math.random() * Math.PI * 2;
       });
