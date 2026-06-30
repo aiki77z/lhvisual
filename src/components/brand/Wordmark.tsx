@@ -1,17 +1,16 @@
 import { InfinityMark } from "./InfinityMark";
 
 type WordmarkProps = {
-  // when true the oo becomes an inline infinity glyph
   className?: string;
 };
 
-// Renders "Lo∞ps" where the double-o is an inline lemniscate.
+// Renders "l∞p": the infinity glyph stands in for the double-o of "loop".
 export function Wordmark({ className }: WordmarkProps) {
   return (
     <span className={`wordmark ${className ?? ""}`}>
-      Lo
+      l
       <InfinityMark size={22} className="wordmark-inf" />
-      ps
+      p
     </span>
   );
 }

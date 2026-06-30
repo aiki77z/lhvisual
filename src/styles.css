@@ -128,17 +128,6 @@ button {
   transform: translateY(1px);
 }
 
-.infinity-trace {
-  stroke-dasharray: 22 78;
-  animation: infloop 3.4s linear infinite;
-}
-
-@keyframes infloop {
-  to {
-    stroke-dashoffset: -100;
-  }
-}
-
 .site-nav,
 .footer-links {
   display: flex;
@@ -174,7 +163,7 @@ p {
 .eyebrow,
 .article-date {
   margin: 0 0 14px;
-  color: var(--accent);
+  color: var(--muted);
   font-family: var(--mono);
   font-size: 0.72rem;
   font-weight: 500;
@@ -196,18 +185,18 @@ p {
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 104px 0 72px;
+  padding: 60px 0 48px;
 }
 
 .hero-canvas {
   position: absolute;
-  inset: -10% -2% 0 -2%;
+  inset: -6% -2% 0 -2%;
   width: 104%;
-  height: 110%;
+  height: 100%;
   z-index: 0;
   pointer-events: none;
-  mask-image: radial-gradient(130% 100% at 72% 30%, #000 30%, transparent 78%);
-  -webkit-mask-image: radial-gradient(130% 100% at 72% 30%, #000 30%, transparent 78%);
+  mask-image: radial-gradient(125% 95% at 70% 40%, #000 28%, transparent 76%);
+  -webkit-mask-image: radial-gradient(125% 95% at 70% 40%, #000 28%, transparent 76%);
 }
 
 .hero-inner {
@@ -217,12 +206,12 @@ p {
 }
 
 .hero h1 {
-  margin: 16px 0 20px;
+  margin: 14px 0 18px;
   font-family: var(--display);
   font-weight: 600;
-  font-size: clamp(2.6rem, 6.2vw, 4.6rem);
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  font-size: clamp(2.2rem, 4.6vw, 3.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
 }
 
 .hero h1 .accent {
@@ -424,7 +413,7 @@ p {
 .source-card .count {
   font-family: var(--mono);
   font-size: 2rem;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .source-card h3 {
@@ -655,7 +644,7 @@ tbody tr:hover {
   display: block;
   font-family: var(--mono);
   font-size: 1.5rem;
-  color: var(--accent);
+  color: var(--text);
 }
 
 .summary-card span {

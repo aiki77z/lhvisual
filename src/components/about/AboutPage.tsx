@@ -50,7 +50,7 @@ export function AboutPage() {
         <h2>Key findings</h2>
         {findings.map((f) => (
           <p key={f.h}>
-            <strong style={{ color: "var(--accent)" }}>{f.h}.</strong> {f.p}
+            <strong style={{ color: "var(--text)" }}>{f.h}.</strong> {f.p}
           </p>
         ))}
       </section>
