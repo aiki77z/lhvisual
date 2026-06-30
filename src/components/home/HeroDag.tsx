@@ -135,19 +135,25 @@ function mix3(a: number[], b: number[], t: number) {
 
 // Fraction of the cycle spent sweeping the build front across the sequence.
 // Each element converges over a short window once the front reaches its seq.
-const BUILD_SPAN = 0.5; // 0..1 of cycle for the assembly sweep
-const CONVERGE = 0.12; // per-element converge duration (in cycle units)
+const BUILD_SPAN = 0.42; // 0..1 of cycle for the assembly sweep
+const CONVERGE = 0.1; // per-element converge duration (in cycle units)
+// Teardown sweeps the same sequence order so the graph comes apart one element
+// at a time rather than all fading at once.
+const TEARDOWN_BASE = 0.6; // first element starts dissolving here
+const TEARDOWN_SPAN = 0.32; // spread of dissolve starts across the sequence
+const DISSOLVE_DUR = 0.08; // per-element dissolve duration
 
 // Returns the element's lifecycle given the global cycle phase g (0..1) and the
 // element's sequence position seq (0..1).
-// Timeline: float -> converge (when front reaches seq) -> locked window
-//           (node tests/passes) -> dissolve in place -> float again.
+// Timeline: float -> converge (when build front reaches seq) -> locked window
+//           (node tests/passes) -> dissolve in place (when teardown front
+//           reaches seq) -> float again.
 function elementState(g: number, seq: number, isNode: boolean) {
   // build front position in cycle units; element converges in [t0, t0+CONVERGE]
   const t0 = seq * BUILD_SPAN;
   const tLockStart = t0 + CONVERGE;
-  const dissolveStart = 0.84;
-  const dissolveEnd = 0.96;
+  const dissolveStart = TEARDOWN_BASE + seq * TEARDOWN_SPAN;
+  const dissolveEnd = dissolveStart + DISSOLVE_DUR;
 
   let lock: number; // 0 float pos, 1 target pos
   let phase: "float" | "converge" | "locked" | "dissolve";
