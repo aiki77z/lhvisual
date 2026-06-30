@@ -32,7 +32,7 @@ export function InfinityMark({ size = 30, animate = false, className }: Infinity
         {animate ? (
           <animate
             attributeName="d"
-            dur="5s"
+            dur="9s"
             repeatCount="indefinite"
             keyTimes="0;0.4;0.5;0.6;1"
             values={`${CIRCLE};${INFINITY};${INFINITY};${INFINITY};${CIRCLE}`}
