@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -12,11 +13,19 @@ function normalizeBasePath(value: string) {
     : `${withLeadingSlash}/`;
 }
 
+function hasCustomDomain() {
+  return existsSync("public/CNAME");
+}
+
 function getSiteBasePath() {
   const explicitBasePath = process.env.VITE_BASE_PATH;
 
   if (explicitBasePath) {
     return normalizeBasePath(explicitBasePath);
+  }
+
+  if (hasCustomDomain()) {
+    return "/";
   }
 
   const repoName = process.env.GITHUB_REPOSITORY?.split("/")[1];
