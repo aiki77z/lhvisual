@@ -748,6 +748,10 @@ tbody tr:hover {
 }
 
 .replay-status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   margin-top: 22px;
   padding: 16px 0;
   border-top: 1px solid var(--border);
@@ -772,6 +776,33 @@ tbody tr:hover {
   margin: 6px 0 0;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.replay-play-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: rgba(77, 141, 255, 0.1);
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.replay-play-button span {
+  color: var(--accent-2);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+}
+
+.replay-play-button:disabled {
+  cursor: default;
+  opacity: 0.72;
 }
 
 .case-replay-grid {
@@ -1075,6 +1106,10 @@ tbody tr:hover {
   .case-replay-head,
   .run-layout {
     grid-template-columns: 1fr;
+  }
+  .replay-status-strip {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .terminal-replay {
     grid-template-columns: 1fr;
