@@ -857,8 +857,10 @@ tbody tr:hover {
 }
 
 .case-dag-edge-hot {
-  stroke: rgba(110, 168, 255, 0.95);
-  stroke-width: 2.4;
+  filter: drop-shadow(0 0 5px rgba(110, 168, 255, 0.9));
+  stroke: #9ec6ff;
+  stroke-dasharray: 4 6;
+  stroke-width: 3.2;
 }
 
 .case-dag-port {
@@ -908,15 +910,29 @@ tbody tr:hover {
 
 .case-node-running,
 .case-node-testing {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(77, 141, 255, 0.18), 0 0 28px rgba(77, 141, 255, 0.14);
+  border-color: #9ec6ff;
+  box-shadow:
+    0 0 0 1px rgba(158, 198, 255, 0.34),
+    0 0 30px rgba(77, 141, 255, 0.22);
   animation: node-pulse 1.6s ease-in-out infinite;
 }
 
 .case-node-current {
+  border-color: #c9dcff;
   background:
-    linear-gradient(90deg, rgba(77, 141, 255, 0.17), rgba(13, 19, 32, 0.9)),
+    linear-gradient(90deg, rgba(77, 141, 255, 0.34), rgba(18, 28, 47, 0.96)),
     rgba(13, 19, 32, 0.9);
+  box-shadow:
+    0 0 0 1px rgba(201, 220, 255, 0.46),
+    0 0 36px rgba(77, 141, 255, 0.34);
+}
+
+.case-node-current strong {
+  color: #ffffff;
+}
+
+.case-node-current em {
+  color: #dbe8ff;
 }
 
 .case-node-ready {
