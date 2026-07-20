@@ -776,11 +776,21 @@ tbody tr:hover {
 
 .case-dag-edge {
   fill: none;
-  stroke: rgba(77, 141, 255, 0.34);
-  stroke-dasharray: 7 10;
+  stroke: rgba(77, 141, 255, 0.3);
+  stroke-dasharray: 6 8;
   stroke-linecap: round;
-  stroke-width: 1.2;
+  stroke-width: 1.4;
   animation: dag-flow 3.4s linear infinite;
+}
+
+.case-dag-edge-active {
+  stroke: rgba(77, 141, 255, 0.78);
+  stroke-width: 1.8;
+}
+
+.case-dag-port {
+  fill: var(--accent);
+  opacity: 0.72;
 }
 
 .case-node {
@@ -981,15 +991,10 @@ tbody tr:hover {
 
 @keyframes dag-flow {
   from {
-    opacity: 0;
-    transform: scaleX(0);
-  }
-  35% {
-    opacity: 0.18;
+    stroke-dashoffset: 42;
   }
   to {
-    opacity: 0;
-    transform: scaleX(1);
+    stroke-dashoffset: 0;
   }
 }
 

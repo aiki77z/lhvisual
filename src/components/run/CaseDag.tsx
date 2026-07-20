@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { caseDagEdges, caseDagNodes, type CaseDagNode } from "../../data/caseReplay";
 
 const layerLabels = ["Ready frontier", "Math core", "Game systems", "Acceptance"];
@@ -28,6 +29,44 @@ const yOffsetsByLayer: Record<number, number> = {
   3: 94,
 };
 
+const replayPhases: Array<Record<string, CaseDagNode["status"]>> = [
+  {
+    vector2_math: "testing",
+    scoring_system: "running",
+    transform_system: "ready",
+    sim_world: "locked",
+    replay_runner: "locked",
+  },
+  {
+    vector2_math: "done",
+    scoring_system: "done",
+    transform_system: "running",
+    sim_world: "ready",
+    replay_runner: "locked",
+  },
+  {
+    vector2_math: "done",
+    scoring_system: "done",
+    transform_system: "done",
+    sim_world: "running",
+    replay_runner: "locked",
+  },
+  {
+    vector2_math: "done",
+    scoring_system: "done",
+    transform_system: "done",
+    sim_world: "done",
+    replay_runner: "testing",
+  },
+  {
+    vector2_math: "done",
+    scoring_system: "done",
+    transform_system: "done",
+    sim_world: "done",
+    replay_runner: "done",
+  },
+];
+
 function statusLabel(status: CaseDagNode["status"]) {
   if (status === "done") return "passed";
   if (status === "running") return "agent";
@@ -36,8 +75,30 @@ function statusLabel(status: CaseDagNode["status"]) {
 }
 
 export function CaseDag() {
+  const [phaseIndex, setPhaseIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setPhaseIndex((current) => (current + 1) % replayPhases.length);
+    }, 2600);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const activePhase = replayPhases[phaseIndex];
   const orderedNodes = nodeOrder
-    .map((id) => caseDagNodes.find((node) => node.id === id))
+    .map((id) => {
+      const node = caseDagNodes.find((candidate) => candidate.id === id);
+
+      if (!node) {
+        return undefined;
+      }
+
+      return {
+        ...node,
+        status: activePhase[node.id] ?? node.status,
+      };
+    })
     .filter((node): node is CaseDagNode => Boolean(node));
 
   const nodePositions = Object.fromEntries(
@@ -77,13 +138,19 @@ export function CaseDag() {
             const endX = to.x;
             const endY = to.y + nodeHeight / 2;
             const midX = startX + (endX - startX) * 0.5;
+            const fromStatus = orderedNodes.find((node) => node.id === edge.from)?.status;
+            const toStatus = orderedNodes.find((node) => node.id === edge.to)?.status;
+            const isActiveEdge = fromStatus === "done" && toStatus !== "locked";
 
             return (
-              <path
-                className="case-dag-edge"
-                d={`M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`}
-                key={`${edge.from}-${edge.to}`}
-              />
+              <g key={`${edge.from}-${edge.to}`}>
+                <path
+                  className={`case-dag-edge${isActiveEdge ? " case-dag-edge-active" : ""}`}
+                  d={`M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`}
+                />
+                <circle className="case-dag-port" cx={startX} cy={startY} r="2.4" />
+                <circle className="case-dag-port" cx={endX} cy={endY} r="2.4" />
+              </g>
             );
           })}
         </g>
