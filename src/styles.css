@@ -755,68 +755,32 @@ tbody tr:hover {
 
 .case-dag {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 18px;
   overflow-x: auto;
-  padding: 20px 0 8px;
+  padding-bottom: 8px;
 }
 
-.case-dag::before {
-  content: "";
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  top: 74px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-line), transparent);
-}
-
-.case-dag-lines {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.case-dag-lines span {
-  position: absolute;
-  top: 72px;
-  left: 12%;
-  width: 70%;
-  height: 1px;
-  opacity: 0.12;
-  background: var(--accent);
-  transform-origin: left;
-  animation: dag-flow 3.4s linear infinite;
-}
-
-.case-dag-lines span:nth-child(3n + 1) {
-  top: 150px;
-  animation-delay: 0.4s;
-}
-
-.case-dag-lines span:nth-child(3n + 2) {
-  top: 228px;
-  animation-delay: 0.9s;
-}
-
-.case-dag-layer {
-  position: relative;
-  z-index: 1;
-  min-width: 180px;
+.case-dag-svg {
+  display: block;
+  min-width: 1040px;
+  width: 100%;
+  height: auto;
 }
 
 .case-dag-layer-title {
-  margin-bottom: 12px;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 0.75rem;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.case-dag-nodes {
-  display: grid;
-  gap: 10px;
+.case-dag-edge {
+  fill: none;
+  stroke: rgba(77, 141, 255, 0.34);
+  stroke-dasharray: 7 10;
+  stroke-linecap: round;
+  stroke-width: 1.2;
+  animation: dag-flow 3.4s linear infinite;
 }
 
 .case-node {
@@ -824,7 +788,8 @@ tbody tr:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  min-height: 72px;
+  box-sizing: border-box;
+  height: 76px;
   padding: 12px 13px;
   border: 1px solid var(--border);
   background: rgba(13, 19, 32, 0.82);
