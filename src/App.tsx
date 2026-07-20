@@ -2,6 +2,7 @@ import { AboutPage } from "./components/about/AboutPage";
 import { HomePage } from "./components/home/HomePage";
 import { PageShell } from "./components/layout/PageShell";
 import { LeaderboardPage } from "./components/leaderboard/LeaderboardPage";
+import { RunLoopsBenchPage } from "./components/run/RunLoopsBenchPage";
 import { getCurrentAppPath, toAppPath } from "./lib/site";
 
 export function App() {
@@ -11,6 +12,8 @@ export function App() {
 
   if (path === "/") {
     page = <HomePage />;
+  } else if (path === "/run-loopsbench") {
+    page = <RunLoopsBenchPage />;
   } else if (path === "/leaderboard") {
     page = <LeaderboardPage />;
   } else if (path === "/about") {
