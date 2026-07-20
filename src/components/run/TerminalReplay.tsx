@@ -1,12 +1,15 @@
 import { terminalEvents } from "../../data/caseReplay";
 
 const lanes = [
-  { id: "agent", label: "Agent CLI", prompt: "agent@workspace" },
-  { id: "tests", label: "Unit tests", prompt: "pytest" },
-  { id: "runner", label: "Acceptance runner", prompt: "verifier" },
+  { id: "agent", label: "Agent docker", prompt: "agent@workspace" },
+  { id: "verifier", label: "Test / verifier docker", prompt: "tester@host_wrapped" },
 ] as const;
 
-export function TerminalReplay() {
+type TerminalReplayProps = {
+  activeTime: string;
+};
+
+export function TerminalReplay({ activeTime }: TerminalReplayProps) {
   return (
     <div className="terminal-replay" aria-label="Agent and test terminal replay">
       {lanes.map((lane) => (
@@ -17,12 +20,14 @@ export function TerminalReplay() {
           </header>
           <div className="terminal-lines">
             {terminalEvents
-              .filter((event) => event.lane === lane.id)
+              .filter((event) => event.lane === lane.id && event.at <= activeTime)
               .map((event, index) => (
                 <p
-                  className={event.nodeId ? "terminal-line terminal-line-active" : "terminal-line"}
+                  className={`terminal-line${event.nodeId ? " terminal-line-active" : ""}${
+                    event.level ? ` terminal-line-${event.level}` : ""
+                  }`}
                   key={`${event.at}-${event.text}`}
-                  style={{ animationDelay: `${index * 0.32}s` }}
+                  style={{ animationDelay: `${Math.min(index * 0.08, 0.8)}s` }}
                 >
                   <span>{event.at}</span>
                   <code>{event.text}</code>

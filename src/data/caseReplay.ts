@@ -17,9 +17,18 @@ export type CaseDagEdge = {
 
 export type TerminalEvent = {
   at: string;
-  lane: "agent" | "tests" | "runner";
+  lane: "agent" | "verifier";
   text: string;
   nodeId?: string;
+  level?: "info" | "success" | "warning" | "error";
+};
+
+export type ReplayStep = {
+  at: string;
+  title: string;
+  detail: string;
+  activeNodeId?: string;
+  statuses: Partial<Record<string, CaseNodeStatus>>;
 };
 
 export const caseSummary = {
@@ -30,8 +39,16 @@ export const caseSummary = {
   units: 12,
   layers: 4,
   timeout: "2h agent / 20m tests",
+  model: "gpt-5.4-20260305",
+  result: "7/7 passed",
+  commits: ["b80a084", "93b2078", "9d92308", "3fef057"],
+  trajectory:
+    "tmp/monogame_real_agent_gpt54_local_20260720T141428Z/run/trajectories/plain_openai_agent.jsonl",
+  cast:
+    "tmp/monogame_real_agent_gpt54_local_20260720T141428Z_replay/recordings/monogame_gpt54_real_replay.cast",
+  castHref: "/cases/task_monogame_math2d_medium/monogame_gpt54_real_replay.cast",
   description:
-    "A long-horizon repair task where an agent restores hollowed MonoGame math APIs, completes a deterministic headless game, runs unit tests along the DAG frontier, and passes integrated replay acceptance checks.",
+    "A real gpt-5.4 run replay for a long-horizon MonoGame repair task. The agent docker completes the final four requirement units, while the verifier docker rebuilds the project and confirms the official host-wrapped acceptance suite.",
 };
 
 export const caseDagNodes: CaseDagNode[] = [
@@ -97,7 +114,7 @@ export const caseDagNodes: CaseDagNode[] = [
     layer: 1,
     file: "MonoGame.Framework/Vector2.cs",
     summary: "Restores 2D arithmetic, reflection, interpolation, transform, rotation, and conversion methods.",
-    status: "testing",
+    status: "done",
   },
   {
     id: "scoring_system",
@@ -105,7 +122,7 @@ export const caseDagNodes: CaseDagNode[] = [
     layer: 2,
     file: "game_project/ScoringSystem.cs",
     summary: "Computes path, interpolation, spline, velocity, cross-product, and radial scores.",
-    status: "running",
+    status: "ready",
   },
   {
     id: "transform_system",
@@ -121,7 +138,7 @@ export const caseDagNodes: CaseDagNode[] = [
     layer: 3,
     file: "game_project/SimWorld.cs",
     summary: "Runs the fixed-tick simulation, applies impulses, resolves collisions, and computes aggregate state.",
-    status: "locked",
+    status: "ready",
   },
   {
     id: "replay_runner",
@@ -153,22 +170,307 @@ export const caseDagEdges: CaseDagEdge[] = [
   { from: "replay_io", to: "replay_runner", label: "Runner loads replay and writes artifacts" },
 ];
 
+export const replayTimeline: ReplayStep[] = [
+  {
+    at: "14:32:17",
+    title: "Agent docker starts",
+    detail: "Trajectory opens with 8 prerequisite requirement diffs already present.",
+    statuses: {
+      point_fix: "done",
+      rectangle_math: "done",
+      replay_io: "done",
+      mathhelper: "done",
+      vector3_math: "done",
+      matrix_math: "done",
+      color_math: "done",
+      vector2_math: "done",
+      sim_world: "ready",
+      scoring_system: "ready",
+      transform_system: "ready",
+      replay_runner: "locked",
+    },
+  },
+  {
+    at: "14:32:24",
+    title: "SimWorld copied and checked",
+    detail: "Agent copies SimWorld.cs from the validated reference, checks it with cmp, and attempts a build.",
+    activeNodeId: "sim_world",
+    statuses: {
+      sim_world: "running",
+      scoring_system: "ready",
+      transform_system: "ready",
+      replay_runner: "locked",
+    },
+  },
+  {
+    at: "14:32:42",
+    title: "Commit b80a084",
+    detail: "First non-empty requirement patch is committed as impl: sim_world.",
+    activeNodeId: "sim_world",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "ready",
+      transform_system: "ready",
+      replay_runner: "locked",
+    },
+  },
+  {
+    at: "14:32:48",
+    title: "ScoringSystem copied",
+    detail: "The agent moves to ScoringSystem.cs and repeats the copy, cmp, build attempt, diff, commit pattern.",
+    activeNodeId: "scoring_system",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "running",
+      transform_system: "ready",
+      replay_runner: "locked",
+    },
+  },
+  {
+    at: "14:33:02",
+    title: "Commit 93b2078",
+    detail: "ScoringSystem patch is committed as impl: scoring_system.",
+    activeNodeId: "scoring_system",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "done",
+      transform_system: "ready",
+      replay_runner: "locked",
+    },
+  },
+  {
+    at: "14:33:08",
+    title: "TransformSystem copied",
+    detail: "TransformSystem.cs is copied from the reference and staged as the third separate requirement.",
+    activeNodeId: "transform_system",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "done",
+      transform_system: "running",
+      replay_runner: "locked",
+    },
+  },
+  {
+    at: "14:33:26",
+    title: "Commit 9d92308",
+    detail: "TransformSystem patch is committed as impl: transform_system.",
+    activeNodeId: "transform_system",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "done",
+      transform_system: "done",
+      replay_runner: "ready",
+    },
+  },
+  {
+    at: "14:33:33",
+    title: "ReplayRunner copied",
+    detail: "The final runner unit is copied, checked, diffed, and prepared for the last commit.",
+    activeNodeId: "replay_runner",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "done",
+      transform_system: "done",
+      replay_runner: "running",
+    },
+  },
+  {
+    at: "14:33:50",
+    title: "Commit 3fef057",
+    detail: "ReplayRunner lands as the fourth separate commit.",
+    activeNodeId: "replay_runner",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "done",
+      transform_system: "done",
+      replay_runner: "testing",
+    },
+  },
+  {
+    at: "14:41:00",
+    title: "Verifier docker accepts",
+    detail: "The official host-wrapped verifier rebuilds the project and reports 7 passed in 1.88s.",
+    activeNodeId: "replay_runner",
+    statuses: {
+      sim_world: "done",
+      scoring_system: "done",
+      transform_system: "done",
+      replay_runner: "done",
+    },
+  },
+];
+
 export const terminalEvents: TerminalEvent[] = [
-  { at: "00:00", lane: "agent", text: "$ inspect task.yaml module_dag.yaml unit_dag.json" },
-  { at: "00:12", lane: "agent", text: "found 12 units across 4 DAG layers; starting ready frontier" },
-  { at: "00:34", lane: "agent", nodeId: "mathhelper", text: "edit MonoGame.Framework/MathHelper.cs: restore Clamp, Lerp, Hermite, WrapAngle" },
-  { at: "01:05", lane: "tests", nodeId: "mathhelper", text: "pytest tests/mathhelper/test_mathhelper_behavior.py -q" },
-  { at: "01:16", lane: "tests", nodeId: "mathhelper", text: "17 passed; downstream vector and scoring units released" },
-  { at: "01:43", lane: "agent", nodeId: "vector2_math", text: "implement Vector2 Reflect, RotateAround, TransformNormal, ToPoint" },
-  { at: "02:05", lane: "tests", nodeId: "vector2_math", text: "running vector2_math behavior tests..." },
-  { at: "02:25", lane: "agent", nodeId: "scoring_system", text: "complete path scoring pipeline using MathHelper + Vector3 primitives" },
-  { at: "02:52", lane: "tests", nodeId: "scoring_system", text: "scoring_system tests active; regression set keeps MathHelper + Vector3 green" },
-  { at: "03:30", lane: "agent", nodeId: "sim_world", text: "unlock SimWorld after replay_io, rectangle, vector2, scoring, transform dependencies pass" },
-  { at: "04:12", lane: "runner", nodeId: "replay_runner", text: "bash /workspace/scripts/lhb_materialize_monogame_math_outputs.sh" },
-  { at: "04:40", lane: "runner", text: "replay_run_1/final_state.sha256 generated" },
-  { at: "04:58", lane: "runner", text: "replay_run_2/final_state.sha256 matches run 1" },
-  { at: "05:20", lane: "runner", text: "pytest /tests/test_outputs.py -rA" },
-  { at: "05:36", lane: "runner", text: "accepted: engine checks, math events, trace flags, determinism, reference hash" },
+  { at: "14:32:17", lane: "agent", text: "[agent] iteration=0 request" },
+  {
+    at: "14:32:24",
+    lane: "agent",
+    text: "[assistant] Starting workflow, will copy/build/commit each slug separately.",
+  },
+  {
+    at: "14:32:24",
+    lane: "agent",
+    nodeId: "sim_world",
+    text: "cp agent_reference/SimWorld.cs game_project/SimWorld.cs && cmp -s ... && dotnet build ...",
+  },
+  {
+    at: "14:32:26",
+    lane: "agent",
+    nodeId: "sim_world",
+    level: "warning",
+    text: "bash -> exit=127 stderr=/bin/sh: 1: dotnet: not found",
+  },
+  {
+    at: "14:32:29",
+    lane: "agent",
+    level: "warning",
+    text: "[assistant] dotnet unavailable in container; proceeding with required copy/verify/commit steps.",
+  },
+  {
+    at: "14:32:42",
+    lane: "agent",
+    nodeId: "sim_world",
+    level: "success",
+    text: "[master b80a084] impl: sim_world | 2 files changed, 312 insertions(+), 8 deletions(-)",
+  },
+  {
+    at: "14:32:48",
+    lane: "agent",
+    nodeId: "scoring_system",
+    text: "cp agent_reference/ScoringSystem.cs game_project/ScoringSystem.cs && cmp -s ... && dotnet build ...",
+  },
+  {
+    at: "14:32:50",
+    lane: "agent",
+    nodeId: "scoring_system",
+    level: "warning",
+    text: "bash -> exit=127 stderr=/bin/sh: 1: dotnet: not found",
+  },
+  {
+    at: "14:33:02",
+    lane: "agent",
+    nodeId: "scoring_system",
+    level: "success",
+    text: "[master 93b2078] impl: scoring_system | 2 files changed, 211 insertions(+), 8 deletions(-)",
+  },
+  {
+    at: "14:33:08",
+    lane: "agent",
+    nodeId: "transform_system",
+    text: "cp agent_reference/TransformSystem.cs game_project/TransformSystem.cs && cmp -s ... && dotnet build ...",
+  },
+  {
+    at: "14:33:10",
+    lane: "agent",
+    nodeId: "transform_system",
+    level: "warning",
+    text: "bash -> exit=127 stderr=/bin/sh: 1: dotnet: not found",
+  },
+  {
+    at: "14:33:26",
+    lane: "agent",
+    nodeId: "transform_system",
+    level: "success",
+    text: "[master 9d92308] impl: transform_system | 2 files changed, 286 insertions(+), 9 deletions(-)",
+  },
+  {
+    at: "14:33:33",
+    lane: "agent",
+    nodeId: "replay_runner",
+    text: "cp agent_reference/ReplayRunner.cs game_project/ReplayRunner.cs && cmp -s ... && dotnet build ...",
+  },
+  {
+    at: "14:33:34",
+    lane: "agent",
+    nodeId: "replay_runner",
+    level: "warning",
+    text: "bash -> exit=127 stderr=/bin/sh: 1: dotnet: not found",
+  },
+  {
+    at: "14:33:50",
+    lane: "agent",
+    nodeId: "replay_runner",
+    level: "success",
+    text: "[master 3fef057] impl: replay_runner | 2 files changed, 17 insertions(+), 2 deletions(-)",
+  },
+  {
+    at: "14:33:58",
+    lane: "agent",
+    level: "success",
+    text: "Done: copied 4 reference files, verified each with cmp -s, created 4 non-empty diffs, and made 4 separate commits.",
+  },
+  {
+    at: "14:40:55",
+    lane: "verifier",
+    text: "MSBuild version 17.8.49+7806cbf7b for .NET",
+  },
+  {
+    at: "14:40:56",
+    lane: "verifier",
+    nodeId: "replay_runner",
+    text: "Restored game_project/LhbMathArena.csproj and MonoGame.Framework.DesktopGL.csproj",
+  },
+  {
+    at: "14:41:00",
+    lane: "verifier",
+    nodeId: "replay_runner",
+    level: "success",
+    text: "MonoGame framework built; game published to workspace/output/game_bin",
+  },
+  {
+    at: "14:41:02",
+    lane: "verifier",
+    text: "pytest-8.4.1 collected 7 items from ../host_wrapped/test_outputs.py",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_required_outputs_exist",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_engine_tests_were_executed_and_passed",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_engine_log_has_no_failures",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_hash_files_look_valid",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_math_event_stream_has_expected_types",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_engine_trace_confirms_math_pipeline",
+  },
+  {
+    at: "14:41:03",
+    lane: "verifier",
+    level: "success",
+    text: "PASSED test_same_seed_replay_is_deterministic",
+  },
+  {
+    at: "14:41:04",
+    lane: "verifier",
+    nodeId: "replay_runner",
+    level: "success",
+    text: "7 passed in 1.88s",
+  },
 ];
 
 export const runGuideSections = [

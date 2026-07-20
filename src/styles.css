@@ -742,8 +742,36 @@ tbody tr:hover {
 .case-metrics dd {
   margin: 5px 0 0;
   font-family: var(--mono);
-  font-size: 1.3rem;
+  font-size: clamp(0.92rem, 1.6vw, 1.3rem);
   color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.replay-status-strip {
+  margin-top: 22px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.replay-status-strip span {
+  color: var(--accent-2);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.replay-status-strip strong {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--display);
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+.replay-status-strip p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 .case-replay-grid {
@@ -786,6 +814,11 @@ tbody tr:hover {
 .case-dag-edge-active {
   stroke: rgba(77, 141, 255, 0.78);
   stroke-width: 1.8;
+}
+
+.case-dag-edge-hot {
+  stroke: rgba(110, 168, 255, 0.95);
+  stroke-width: 2.4;
 }
 
 .case-dag-port {
@@ -839,6 +872,12 @@ tbody tr:hover {
   animation: node-pulse 1.6s ease-in-out infinite;
 }
 
+.case-node-current {
+  background:
+    linear-gradient(90deg, rgba(77, 141, 255, 0.17), rgba(13, 19, 32, 0.9)),
+    rgba(13, 19, 32, 0.9);
+}
+
 .case-node-ready {
   border-color: var(--border-strong);
 }
@@ -849,15 +888,13 @@ tbody tr:hover {
 
 .terminal-replay {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(360px, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  overflow-x: auto;
   padding-bottom: 8px;
 }
 
 .terminal-pane {
-  min-height: 300px;
+  min-height: 360px;
   border: 1px solid var(--border);
   background:
     linear-gradient(rgba(77, 141, 255, 0.05), transparent 28%),
@@ -884,6 +921,9 @@ tbody tr:hover {
 .terminal-lines {
   display: grid;
   gap: 9px;
+  align-content: start;
+  max-height: 430px;
+  overflow: auto;
   padding: 14px;
 }
 
@@ -913,6 +953,18 @@ tbody tr:hover {
 
 .terminal-line-active code {
   color: var(--accent-2);
+}
+
+.terminal-line-success code {
+  color: #8ee6a3;
+}
+
+.terminal-line-warning code {
+  color: var(--warning);
+}
+
+.terminal-line-error code {
+  color: #ff8b8b;
 }
 
 .run-layout {
@@ -1022,6 +1074,9 @@ tbody tr:hover {
   }
   .case-replay-head,
   .run-layout {
+    grid-template-columns: 1fr;
+  }
+  .terminal-replay {
     grid-template-columns: 1fr;
   }
   .run-toc {
