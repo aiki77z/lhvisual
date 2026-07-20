@@ -835,9 +835,11 @@ tbody tr:hover {
 }
 
 .case-dag-layer-title {
-  color: var(--muted);
+  fill: #9fb1cd;
+  color: #9fb1cd;
   font-family: var(--mono);
   font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
