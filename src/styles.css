@@ -747,15 +747,24 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 
+.replay-console {
+  margin-top: 22px;
+  padding: 16px;
+  border: 1px solid rgba(96, 116, 150, 0.32);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(77, 141, 255, 0.06), transparent 32%),
+    rgba(7, 10, 17, 0.74);
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.26);
+}
+
 .replay-status-strip {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-top: 22px;
-  padding: 16px 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(96, 116, 150, 0.24);
 }
 
 .replay-status-strip span {
@@ -766,16 +775,17 @@ tbody tr:hover {
 
 .replay-status-strip strong {
   display: block;
-  margin-top: 5px;
+  margin-top: 3px;
   font-family: var(--display);
-  font-size: 1.08rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .replay-status-strip p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  line-height: 1.55;
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .replay-play-button {
@@ -808,19 +818,18 @@ tbody tr:hover {
 .case-replay-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 22px;
-  margin-top: 22px;
+  gap: 14px;
+  margin-top: 14px;
 }
 
 .case-dag {
   position: relative;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  overflow: hidden;
+  padding: 6px 4px 0;
 }
 
 .case-dag-svg {
   display: block;
-  min-width: 1040px;
   width: 100%;
   height: auto;
 }
@@ -828,7 +837,7 @@ tbody tr:hover {
 .case-dag-layer-title {
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -860,19 +869,20 @@ tbody tr:hover {
 .case-node {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
   box-sizing: border-box;
-  height: 76px;
-  padding: 12px 13px;
+  height: 56px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   background: rgba(13, 19, 32, 0.82);
 }
 
 .case-node strong {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-family: var(--display);
+  font-size: 0.86rem;
   font-weight: 600;
 }
 
@@ -880,14 +890,14 @@ tbody tr:hover {
   display: block;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   overflow-wrap: anywhere;
 }
 
 .case-node em {
   color: var(--faint);
   font-family: var(--mono);
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-style: normal;
   text-transform: uppercase;
 }
@@ -925,7 +935,7 @@ tbody tr:hover {
 }
 
 .terminal-pane {
-  min-height: 360px;
+  min-height: 270px;
   overflow: hidden;
   border: 1px solid rgba(96, 116, 150, 0.34);
   border-radius: 8px;
@@ -978,7 +988,7 @@ tbody tr:hover {
   display: grid;
   gap: 6px;
   align-content: start;
-  max-height: 430px;
+  max-height: 252px;
   overflow: auto;
   padding: 14px 12px 16px;
 }
@@ -1005,8 +1015,8 @@ tbody tr:hover {
 .terminal-line code {
   color: #d9e2ef;
   font-family: var(--mono);
-  font-size: 0.78rem;
-  line-height: 1.55;
+  font-size: 0.74rem;
+  line-height: 1.45;
   white-space: normal;
 }
 

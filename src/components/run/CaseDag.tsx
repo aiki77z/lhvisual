@@ -1,10 +1,10 @@
 import { caseDagEdges, caseDagNodes, type CaseDagNode, type ReplayStep } from "../../data/caseReplay";
 
 const layerLabels = ["Ready frontier", "Math core", "Game systems", "Acceptance"];
-const layerX = [70, 390, 710, 1030] as const;
-const nodeWidth = 260;
-const nodeHeight = 76;
-const nodeGap = 24;
+const layerX = [46, 330, 614, 898] as const;
+const nodeWidth = 238;
+const nodeHeight = 56;
+const nodeGap = 14;
 
 const nodeOrder = [
   "point_fix",
@@ -22,10 +22,10 @@ const nodeOrder = [
 ] as const;
 
 const yOffsetsByLayer: Record<number, number> = {
-  0: 66,
-  1: 66,
-  2: 94,
-  3: 94,
+  0: 50,
+  1: 50,
+  2: 84,
+  3: 84,
 };
 
 function statusLabel(status: CaseDagNode["status"]) {
@@ -72,7 +72,7 @@ export function CaseDag({ activeStep }: CaseDagProps) {
 
   return (
     <div className="case-dag" aria-label="MonoGame Math Arena dependency DAG">
-      <svg className="case-dag-svg" viewBox="0 0 1360 510" role="img">
+      <svg className="case-dag-svg" viewBox="0 0 1182 340" role="img">
         <title>MonoGame Math Arena DAG</title>
         <desc>
           Dependency graph showing four layers from ready frontier modules through math core, game systems, and

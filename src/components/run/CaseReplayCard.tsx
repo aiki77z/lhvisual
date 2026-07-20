@@ -65,20 +65,23 @@ export function CaseReplayCard() {
           </div>
         </dl>
       </div>
-      <div className="replay-status-strip" aria-live="polite">
-        <div>
-          <span>{activeStep.at}</span>
-          <strong>{activeStep.title}</strong>
-          <p>{activeStep.detail}</p>
+
+      <div className="replay-console">
+        <div className="replay-status-strip" aria-live="polite">
+          <div>
+            <span>{activeStep.at}</span>
+            <strong>{activeStep.title}</strong>
+            <p>{activeStep.detail}</p>
+          </div>
+          <button className="replay-play-button" disabled={isPlaying} onClick={handlePlay} type="button">
+            <span aria-hidden="true">{isFinished ? "R" : ">"}</span>
+            {isPlaying ? "Playing" : isFinished ? "Replay" : "Play replay"}
+          </button>
         </div>
-        <button className="replay-play-button" disabled={isPlaying} onClick={handlePlay} type="button">
-          <span aria-hidden="true">{isFinished ? "↻" : "▶"}</span>
-          {isPlaying ? "Playing" : isFinished ? "Replay" : "Play replay"}
-        </button>
-      </div>
-      <div className="case-replay-grid">
-        <CaseDag activeStep={activeStep} />
-        <TerminalReplay activeTime={activeStep.at} />
+        <div className="case-replay-grid">
+          <CaseDag activeStep={activeStep} />
+          <TerminalReplay activeTime={activeStep.at} />
+        </div>
       </div>
     </section>
   );
