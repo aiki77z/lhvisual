@@ -25,7 +25,7 @@ export function TerminalReplay({ activeTime }: TerminalReplayProps) {
                 <p
                   className={`terminal-line${event.nodeId ? " terminal-line-active" : ""}${
                     event.level ? ` terminal-line-${event.level}` : ""
-                  }`}
+                  }${event.at === activeTime ? " terminal-line-current" : ""}`}
                   key={`${event.at}-${event.text}`}
                   style={{ animationDelay: `${Math.min(index * 0.08, 0.8)}s` }}
                 >

@@ -29,7 +29,7 @@ export function CaseReplayCard() {
 
         return next;
       });
-    }, 2400);
+    }, 900);
 
     return () => window.clearInterval(interval);
   }, [isFinished, isPlaying]);
