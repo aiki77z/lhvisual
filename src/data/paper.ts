@@ -1,4 +1,4 @@
-export const repoUrl = "https://github.com/aiki77z/lhvisual";
+export const repoUrl = "https://github.com/microsoft/Loopsbench";
 export const paperUrl = "#";
 export const datasetUrl = "#";
 
