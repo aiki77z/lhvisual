@@ -65,6 +65,20 @@ function shortCommand(command: string) {
   return command.replace(/\s+/g, " ").trim();
 }
 
+function truncateText(text: string, maxLength = 132) {
+  const normalized = shortCommand(text);
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}...` : normalized;
+}
+
+function extractJsonString(payload: string, key: string) {
+  const match = payload.match(new RegExp(`"${key}"\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"`));
+  return match?.[1]?.replace(/\\"/g, '"').replace(/\\\\n/g, " ");
+}
+
+function extractJsonNumber(payload: string, key: string) {
+  return payload.match(new RegExp(`"${key}"\\s*:\\s*(\\d+)`))?.[1];
+}
+
 function parseToolCommand(tool: string, payload: string) {
   try {
     const parsed = JSON.parse(payload) as {
@@ -75,24 +89,41 @@ function parseToolCommand(tool: string, payload: string) {
     };
 
     if (tool === "bash" && parsed.command) {
-      return shortCommand(parsed.command);
+      return `{"command": "${truncateText(parsed.command)}"}`;
     }
 
     if (tool === "read_file" && parsed.path) {
-      const offset = parsed.offset === undefined ? "" : ` offset=${parsed.offset}`;
-      const limit = parsed.limit === undefined ? "" : ` limit=${parsed.limit}`;
-      return `read_file ${parsed.path}${offset}${limit}`;
+      const offset = parsed.offset === undefined ? "" : `, "offset": ${parsed.offset}`;
+      const limit = parsed.limit === undefined ? "" : `, "limit": ${parsed.limit}`;
+      return `{"path": "${parsed.path}"${offset}${limit}}`;
     }
 
     if (tool === "write_file" && parsed.path) {
-      const size = parsed.command ? "" : " from tool payload";
-      return `write_file ${parsed.path}${size}`;
+      const contentLength =
+        "content" in parsed && typeof parsed.content === "string" ? `, "content": "...${parsed.content.length} chars"` : "";
+      return `{"path": "${parsed.path}"${contentLength}}`;
     }
   } catch {
     // The cast is terminal output, so wrapped JSON can be incomplete. Fall back to the visible text.
   }
 
-  return `${tool} ${payload}`.trim();
+  const command = extractJsonString(payload, "command");
+  const path = extractJsonString(payload, "path");
+  const offset = extractJsonNumber(payload, "offset");
+  const limit = extractJsonNumber(payload, "limit");
+
+  if (tool === "bash" && command) {
+    return `{"command": "${truncateText(command)}"}`;
+  }
+
+  if ((tool === "read_file" || tool === "write_file") && path) {
+    const offsetPart = offset ? `, "offset": ${offset}` : "";
+    const limitPart = limit ? `, "limit": ${limit}` : "";
+    const contentPart = tool === "write_file" ? `, "content": "..."` : "";
+    return `{"path": "${path}"${offsetPart}${limitPart}${contentPart}}`;
+  }
+
+  return truncateText(payload);
 }
 
 function appendPiece(block: TerminalBlock, at: number, text: string) {
@@ -130,7 +161,7 @@ function parseAgentBlocks(events: CastEvent[]) {
             at: event.at,
             kind: "command",
             label: "shell",
-            command: shortCommand(shellCommand[1]),
+            command: truncateText(shellCommand[1], 150),
             pieces: [],
           };
           blocks.push(pendingCommand);
@@ -299,6 +330,18 @@ function blockLevel(block: TerminalBlock, visiblePieces: TerminalPiece[]) {
   return block.level ?? [...visiblePieces].reverse().find((piece) => piece.level)?.level;
 }
 
+function blockTag(block: TerminalBlock) {
+  if (block.kind === "command" && block.label && !["shell", "verifier"].includes(block.label)) {
+    return `[tool] ${block.label}`;
+  }
+
+  if (block.label) {
+    return `[${block.label}]`;
+  }
+
+  return block.kind === "command" ? "[shell]" : "[output]";
+}
+
 type TerminalReplayProps = {
   playhead: number;
   onDurationChange: (duration: number) => void;
@@ -385,11 +428,11 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
                       <span>{displayTime(block.at)}</span>
                       {block.command ? (
                         <code>
-                          <span className="terminal-prompt">$</span> {block.command}
+                          <span className="terminal-tag">{blockTag(block)}</span> {block.command}
                         </code>
                       ) : (
                         <code>
-                          <span className="terminal-prompt">#</span> {block.label ? `${block.label}: ` : ""}
+                          <span className="terminal-tag">{blockTag(block)}</span>{" "}
                           {output}
                         </code>
                       )}
