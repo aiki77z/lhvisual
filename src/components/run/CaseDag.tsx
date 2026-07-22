@@ -90,7 +90,7 @@ export function CaseDag({ activeStep }: CaseDagProps) {
             const fromStatus = orderedNodes.find((node) => node.id === edge.from)?.status;
             const toStatus = orderedNodes.find((node) => node.id === edge.to)?.status;
             const isActiveEdge = fromStatus === "done" && toStatus !== "locked";
-            const isHotEdge = edge.to === activeStep.activeNodeId || edge.from === activeStep.activeNodeId;
+            const isHotEdge = edge.to === activeStep.activeNodeId;
 
             return (
               <g key={`${edge.from}-${edge.to}`}>

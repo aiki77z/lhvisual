@@ -13,7 +13,6 @@ function playbackTime(realSeconds: number) {
 }
 
 export function CaseReplayCard() {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [playhead, setPlayhead] = useState(0);
   const [duration, setDuration] = useState(0);
   const startedAtRef = useRef(0);
@@ -30,43 +29,30 @@ export function CaseReplayCard() {
 
   const activeStep =
     [...replaySteps].reverse().find((step) => step.playbackAt <= playhead) ?? replaySteps[0];
-  const isFinished = duration > 0 && playhead >= duration;
-
   useEffect(() => {
-    if (!isPlaying) {
+    if (duration <= 0) {
       return undefined;
     }
 
-    startedAtRef.current = performance.now() - playhead * 1000;
+    startedAtRef.current = performance.now();
     let frame = 0;
 
     function tick() {
-      const next = Math.min((performance.now() - startedAtRef.current) / 1000, duration);
+      const elapsed = (performance.now() - startedAtRef.current) / 1000;
+      const next = elapsed % duration;
       setPlayhead(next);
-
-      if (next >= duration) {
-        setIsPlaying(false);
-        return;
-      }
 
       frame = window.requestAnimationFrame(tick);
     }
 
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [duration, isPlaying, playhead]);
+  }, [duration]);
 
   const handleDurationChange = useCallback((nextDuration: number) => {
     setDuration(nextDuration);
+    setPlayhead(0);
   }, []);
-
-  function handlePlay() {
-    if (isFinished) {
-      setPlayhead(0);
-    }
-
-    setIsPlaying(true);
-  }
 
   return (
     <section className="case-replay-card" aria-labelledby="case-replay-title">
@@ -99,10 +85,6 @@ export function CaseReplayCard() {
             <strong>{activeStep.title}</strong>
             <p>{activeStep.detail}</p>
           </div>
-          <button className="replay-play-button" disabled={isPlaying || duration === 0} onClick={handlePlay} type="button">
-            <span aria-hidden="true">{isFinished ? "R" : ">"}</span>
-            {isPlaying ? "Playing" : isFinished ? "Replay" : "Play cast replay"}
-          </button>
         </div>
         <div className="case-replay-grid">
           <CaseDag activeStep={activeStep} />
