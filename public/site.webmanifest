@@ -1,0 +1,14 @@
+{
+  "name": "LoopsBench",
+  "short_name": "LoopsBench",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ],
+  "theme_color": "#07090c",
+  "background_color": "#05070d",
+  "display": "standalone"
+}
