@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { caseSummary } from "../../data/caseReplay";
 
 type CastLane = {
@@ -23,6 +23,11 @@ type TerminalBlock = {
   command?: string;
   pieces: TerminalPiece[];
   level?: CastEvent["level"];
+};
+
+type LoadedLane = {
+  blocks: TerminalBlock[];
+  columns: number;
 };
 
 const lanes: CastLane[] = [
@@ -68,6 +73,10 @@ function shortCommand(command: string) {
 function truncateText(text: string, maxLength = 132) {
   const normalized = shortCommand(text);
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}...` : normalized;
+}
+
+function isRunnerCommand(line: string) {
+  return /^cd \/workspace && .+plain_openai_responses_agent\.py\b/.test(line);
 }
 
 function extractJsonString(payload: string, key: string) {
@@ -156,12 +165,13 @@ function parseAgentBlocks(events: CastEvent[]) {
         const assistantLine = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \[assistant\] ?(.*)$/);
         const agentLine = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \[agent\] ?(.*)$/);
 
-        if (shellCommand) {
+        if (shellCommand || isRunnerCommand(line)) {
+          const command = shellCommand?.[1] ?? line;
           pendingCommand = {
             at: event.at,
             kind: "command",
             label: "shell",
-            command: truncateText(shellCommand[1], 150),
+            command,
             pieces: [],
           };
           blocks.push(pendingCommand);
@@ -352,6 +362,7 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
     agent: [],
     tester: [],
   });
+  const [terminalColumns, setTerminalColumns] = useState(80);
 
   useEffect(() => {
     let isMounted = true;
@@ -361,9 +372,9 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
         lanes.map(async (lane) => {
           const response = await fetch(lane.href);
           const text = await response.text();
-          const events = text
-            .trimEnd()
-            .split("\n")
+          const lines = text.trimEnd().split("\n");
+          const header = JSON.parse(lines[0]) as { width?: number };
+          const events = lines
             .slice(1)
             .map((line) => {
               const parsed = JSON.parse(line) as [number, string, string];
@@ -372,7 +383,7 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
             })
             .filter((event) => event.text.trim().length > 0);
 
-          return [lane.id, parseBlocks(lane.id, events)] as const;
+          return [lane.id, { blocks: parseBlocks(lane.id, events), columns: header.width ?? 80 }] as const;
         }),
       );
 
@@ -380,8 +391,13 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
         return;
       }
 
-      const nextBlocks = Object.fromEntries(loaded) as Record<CastLane["id"], TerminalBlock[]>;
+      const loadedByLane = Object.fromEntries(loaded) as Record<CastLane["id"], LoadedLane>;
+      const nextBlocks = Object.fromEntries(
+        Object.entries(loadedByLane).map(([laneId, lane]) => [laneId, lane.blocks]),
+      ) as Record<CastLane["id"], TerminalBlock[]>;
+
       setBlocksByLane(nextBlocks);
+      setTerminalColumns(Math.max(...Object.values(loadedByLane).map((lane) => lane.columns), 80));
       onDurationChange(
         Math.max(
           ...Object.values(nextBlocks).flatMap((blocks) =>
@@ -399,8 +415,10 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
     };
   }, [onDurationChange]);
 
+  const terminalStyle = { "--terminal-columns": terminalColumns } as CSSProperties;
+
   return (
-    <div className="terminal-replay" aria-label="Agent and tester asciinema cast replay">
+    <div className="terminal-replay" aria-label="Agent and tester asciinema cast replay" style={terminalStyle}>
       {lanes.map((lane) => (
         <section className="terminal-pane" key={lane.id}>
           <header>
@@ -425,7 +443,7 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
                     key={`${lane.id}-${block.at}-${index}`}
                   >
                     <div className="terminal-command-row">
-                      <span>{displayTime(block.at)}</span>
+                      <span className="terminal-time">{displayTime(block.at)}</span>
                       {block.command ? (
                         <code>
                           <span className="terminal-tag">{blockTag(block)}</span> {block.command}

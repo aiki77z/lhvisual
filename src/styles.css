@@ -1026,19 +1026,22 @@ tbody tr:hover {
 }
 
 .terminal-lines {
-  display: grid;
-  gap: 8px;
-  align-content: start;
+  --terminal-gutter: 58px;
+  --terminal-font-size: 0.68rem;
+  --terminal-cell-width: 0.64em;
+  --terminal-body-width: calc(var(--terminal-columns, 80) * var(--terminal-cell-width));
   max-height: 214px;
   overflow: auto;
-  padding: 10px 12px 12px;
+  padding: 9px 12px 12px;
+  font-family: var(--mono);
 }
 
 .terminal-block {
   margin: 0;
-  padding: 7px 9px;
+  min-width: calc(var(--terminal-gutter) + var(--terminal-body-width));
+  padding: 3px 0;
   border-left: 2px solid transparent;
-  border-radius: 7px;
+  border-radius: 0;
   opacity: 0;
   transform: translateX(-8px);
   animation: terminal-in 0.45s ease forwards;
@@ -1046,55 +1049,54 @@ tbody tr:hover {
 
 .terminal-command-row {
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: var(--terminal-gutter) var(--terminal-body-width);
+  gap: 0;
   align-items: start;
 }
 
-.terminal-command-row span {
+.terminal-time {
   color: #5f6c80;
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--terminal-font-size);
+  line-height: 1.5;
 }
 
 .terminal-command-row code {
   color: #d9e2ef;
   font-family: var(--mono);
-  font-size: 0.74rem;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
+  font-size: var(--terminal-font-size);
+  line-height: 1.5;
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 2;
 }
 
 .terminal-tag {
-  display: inline-block;
-  margin-right: 6px;
-  padding: 1px 6px 2px;
-  border: 1px solid rgba(96, 165, 255, 0.34);
-  border-radius: 999px;
-  background: rgba(77, 141, 255, 0.12);
-  color: #8dbdff;
+  display: inline;
+  color: #68d391;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .terminal-output {
-  margin: 6px 0 0 78px;
+  width: var(--terminal-body-width);
+  margin: 1px 0 0 var(--terminal-gutter);
   color: #9fb1c9;
   font-family: var(--mono);
-  font-size: 0.72rem;
-  line-height: 1.48;
-  white-space: pre-wrap;
-  word-break: break-word;
+  font-size: var(--terminal-font-size);
+  line-height: 1.5;
+  white-space: pre;
+  overflow-wrap: normal;
+  tab-size: 2;
 }
 
 .terminal-block-command {
-  background: rgba(8, 13, 22, 0.64);
+  background: transparent;
 }
 
 .terminal-block-meta,
 .terminal-block-assistant {
-  background: rgba(77, 141, 255, 0.06);
+  background: rgba(77, 141, 255, 0.035);
 }
 
 .terminal-block-assistant .terminal-command-row code {
@@ -1103,8 +1105,8 @@ tbody tr:hover {
 
 .terminal-block-current {
   border-left-color: var(--accent-2);
-  background: rgba(77, 141, 255, 0.11);
-  box-shadow: inset 0 0 0 1px rgba(77, 141, 255, 0.08);
+  background: rgba(77, 141, 255, 0.075);
+  box-shadow: none;
 }
 
 .terminal-block-current .terminal-command-row code {
