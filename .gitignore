@@ -35,4 +35,7 @@ rq1_reference_additions.bib
 case-input/
 case-assets/
 tmp/
-public/cases/
+public/cases/*
+!public/cases/
+!public/cases/task_monogame_math2d_medium/
+!public/cases/task_monogame_math2d_medium/*.cast
