@@ -35,6 +35,8 @@ const lanes: CastLane[] = [
   { id: "tester", label: "Test / verifier docker", prompt: "tester@host_wrapped", href: caseSummary.testerCastHref },
 ];
 
+const testerLineCadenceSeconds = 0.024;
+
 const ansiPattern = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g;
 
 function cleanTerminalText(value: string) {
@@ -46,7 +48,7 @@ function cleanTerminalText(value: string) {
 }
 
 function playbackTime(realSeconds: number) {
-  return realSeconds <= 30 ? realSeconds * 0.28 : 8.4 + (realSeconds - 30) * 0.025;
+  return realSeconds <= 30 ? realSeconds * 0.7 : 21 + (realSeconds - 30) * 0.12;
 }
 
 function displayTime(seconds: number) {
@@ -267,6 +269,7 @@ function parseTesterBlocks(events: CastEvent[]) {
   const blocks: TerminalBlock[] = [];
   let pytestBlock: TerminalBlock | undefined;
   let outputBuffer = "";
+  let lastLineAt = 0;
 
   function ensurePytestBlock(at: number) {
     if (pytestBlock) {
@@ -286,7 +289,9 @@ function parseTesterBlocks(events: CastEvent[]) {
 
   function appendTesterLine(at: number, line: string) {
     const target = ensurePytestBlock(at);
-    appendPiece(target, at, line);
+    const pacedAt = Math.max(at, lastLineAt + testerLineCadenceSeconds);
+    lastLineAt = pacedAt;
+    appendPiece(target, pacedAt, line);
   }
 
   function flushOutputBuffer(at: number) {

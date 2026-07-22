@@ -1030,10 +1030,11 @@ tbody tr:hover {
   --terminal-font-size: 0.68rem;
   --terminal-cell-width: 0.64em;
   --terminal-body-width: calc(var(--terminal-columns, 80) * var(--terminal-cell-width));
-  max-height: 214px;
+  height: 214px;
   overflow: auto;
   padding: 9px 12px 12px;
   font-family: var(--mono);
+  scrollbar-gutter: stable both-edges;
 }
 
 .terminal-block {
