@@ -266,21 +266,54 @@ function parseAgentBlocks(events: CastEvent[]) {
 function parseTesterBlocks(events: CastEvent[]) {
   const blocks: TerminalBlock[] = [];
   let pytestBlock: TerminalBlock | undefined;
-  let progressBuffer = "";
+  let outputBuffer = "";
 
-  function flushProgress(at: number) {
-    if (!pytestBlock || progressBuffer.length === 0) {
+  function ensurePytestBlock(at: number) {
+    if (pytestBlock) {
+      return pytestBlock;
+    }
+
+    pytestBlock = {
+      at,
+      kind: "command",
+      label: "verifier",
+      command: "bash run-tests.sh (official verifier)",
+      pieces: [],
+    };
+    blocks.push(pytestBlock);
+    return pytestBlock;
+  }
+
+  function appendTesterLine(at: number, line: string) {
+    const target = ensurePytestBlock(at);
+    appendPiece(target, at, line);
+  }
+
+  function flushOutputBuffer(at: number) {
+    if (outputBuffer.length === 0) {
       return;
     }
 
-    appendPiece(pytestBlock, at, progressBuffer);
-    progressBuffer = "";
+    appendTesterLine(at, outputBuffer);
+    outputBuffer = "";
+  }
+
+  function appendTesterText(at: number, text: string) {
+    const lines = text.split("\n");
+
+    outputBuffer += lines[0];
+
+    for (let index = 1; index < lines.length; index += 1) {
+      flushOutputBuffer(at);
+      outputBuffer = lines[index];
+    }
   }
 
   events.forEach((event) => {
     const text = cleanTerminalText(event.text);
 
     if (text.includes("[tester] waiting")) {
+      flushOutputBuffer(event.at);
       blocks.push({
         at: event.at,
         kind: "meta",
@@ -291,6 +324,7 @@ function parseTesterBlocks(events: CastEvent[]) {
     }
 
     if (text.includes("[tester] start signal observed") || text.includes("===== tester run #")) {
+      flushOutputBuffer(event.at);
       blocks.push({
         at: event.at,
         kind: "meta",
@@ -300,33 +334,11 @@ function parseTesterBlocks(events: CastEvent[]) {
       return;
     }
 
-    if (!pytestBlock) {
-      pytestBlock = {
-        at: event.at,
-        kind: "command",
-        label: "verifier",
-        command: "bash run-tests.sh (official verifier)",
-        pieces: [],
-      };
-      blocks.push(pytestBlock);
-    }
-
-    if (/^F+$/.test(text.trim())) {
-      progressBuffer += text.trim();
-
-      if (progressBuffer.length >= 40) {
-        flushProgress(event.at);
-      }
-
-      return;
-    }
-
-    flushProgress(event.at);
-    appendPiece(pytestBlock, event.at, text);
+    appendTesterText(event.at, text);
   });
 
   if (events.length > 0) {
-    flushProgress(events[events.length - 1].at);
+    flushOutputBuffer(events[events.length - 1].at);
   }
 
   return blocks;
