@@ -83,6 +83,11 @@ function parseToolCommand(tool: string, payload: string) {
       const limit = parsed.limit === undefined ? "" : ` limit=${parsed.limit}`;
       return `read_file ${parsed.path}${offset}${limit}`;
     }
+
+    if (tool === "write_file" && parsed.path) {
+      const size = parsed.command ? "" : " from tool payload";
+      return `write_file ${parsed.path}${size}`;
+    }
   } catch {
     // The cast is terminal output, so wrapped JSON can be incomplete. Fall back to the visible text.
   }
@@ -110,10 +115,27 @@ function parseAgentBlocks(events: CastEvent[]) {
       .map((line) => line.trimEnd())
       .filter(Boolean)
       .forEach((line) => {
+        if (/^\[agent-\d+\]/.test(line) || /^[\w-]+@[a-f0-9]+:\/workspace#\s*$/.test(line)) {
+          return;
+        }
+
+        const shellCommand = line.match(/^[\w-]+@[a-f0-9]+:\/workspace#\s+(.+)$/);
         const toolCommand = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \[tool\] ([\w-]+) (.+)$/);
         const toolResult = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \[tool\] ([\w-]+) -> ?(.*)$/);
         const assistantLine = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \[assistant\] ?(.*)$/);
         const agentLine = line.match(/^\[(\d{2}:\d{2}:\d{2})\] \[agent\] ?(.*)$/);
+
+        if (shellCommand) {
+          pendingCommand = {
+            at: event.at,
+            kind: "command",
+            label: "shell",
+            command: shortCommand(shellCommand[1]),
+            pieces: [],
+          };
+          blocks.push(pendingCommand);
+          return;
+        }
 
         if (toolResult) {
           const [, , tool, result] = toolResult;
@@ -227,7 +249,7 @@ function parseTesterBlocks(events: CastEvent[]) {
       return;
     }
 
-    if (text.includes("[tester] start signal observed")) {
+    if (text.includes("[tester] start signal observed") || text.includes("===== tester run #")) {
       blocks.push({
         at: event.at,
         kind: "meta",
@@ -241,8 +263,8 @@ function parseTesterBlocks(events: CastEvent[]) {
       pytestBlock = {
         at: event.at,
         kind: "command",
-        label: "pytest",
-        command: "pytest /tests",
+        label: "verifier",
+        command: "bash run-tests.sh (official verifier)",
         pieces: [],
       };
       blocks.push(pytestBlock);

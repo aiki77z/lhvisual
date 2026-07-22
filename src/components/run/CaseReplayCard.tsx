@@ -20,10 +20,12 @@ export function CaseReplayCard() {
 
   const replaySteps = useMemo(() => {
     const start = timelineSecond(replayTimeline[0].at);
-    return replayTimeline.map((step) => ({
-      ...step,
-      playbackAt: playbackTime(timelineSecond(step.at) - start),
-    }));
+    return replayTimeline
+      .map((step) => ({
+        ...step,
+        playbackAt: playbackTime(timelineSecond(step.at) - start),
+      }))
+      .sort((left, right) => left.playbackAt - right.playbackAt);
   }, []);
 
   const activeStep =
