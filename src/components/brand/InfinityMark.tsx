@@ -8,9 +8,9 @@ type InfinityMarkProps = {
 // Both shapes are 4 cubic-bezier segments so the `d` values interpolate
 // smoothly: circle -> twist into infinity -> untwist back to circle.
 const CIRCLE =
-  "M16 7 C20.97 7, 25 11.03, 25 16 C25 20.97, 20.97 25, 16 25 C11.03 25, 7 20.97, 7 16 C7 11.03, 11.03 7, 16 7 Z";
+  "M21 7 C25.97 7, 30 11.03, 30 16 C30 20.97, 25.97 25, 21 25 C16.03 25, 12 20.97, 12 16 C12 11.03, 16.03 7, 21 7 Z";
 const INFINITY =
-  "M16 16 C16 8, 4 8, 4 16 C4 24, 16 24, 16 16 C16 8, 28 8, 28 16 C28 24, 16 24, 16 16 Z";
+  "M21 16 C21 8, 4 8, 4 16 C4 24, 21 24, 21 16 C21 8, 38 8, 38 16 C38 24, 21 24, 21 16 Z";
 
 export function InfinityMark({ size = 30, animate = false, className }: InfinityMarkProps) {
   return (
@@ -18,7 +18,7 @@ export function InfinityMark({ size = 30, animate = false, className }: Infinity
       className={className}
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 42 32"
       fill="none"
       aria-hidden="true"
     >

@@ -12,7 +12,7 @@ export function App() {
 
   if (path === "/") {
     page = <HomePage />;
-  } else if (path === "/run-loopsbench") {
+  } else if (path === "/run" || path === "/run-loopsbench") {
     page = <RunLoopsBenchPage />;
   } else if (path === "/leaderboard") {
     page = <LeaderboardPage />;

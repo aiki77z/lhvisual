@@ -1,4 +1,5 @@
 import { repoUrl } from "../../data/paper";
+import { toAppPath } from "../../lib/site";
 
 export function SiteFooter() {
   return (
@@ -9,9 +10,10 @@ export function SiteFooter() {
           engineering in coding agent evaluation.
         </p>
         <div className="footer-links" aria-label="Footer links">
+          <a href={toAppPath("/run")}>Run</a>
+          <a href={toAppPath("/leaderboard")}>Leaderboard</a>
+          <a href={toAppPath("/about")}>About</a>
           <a href={repoUrl}>GitHub</a>
-          <a href="#">Paper</a>
-          <a href="#">Dataset</a>
         </div>
       </div>
     </footer>

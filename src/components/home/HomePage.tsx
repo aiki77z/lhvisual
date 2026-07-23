@@ -1,128 +1,124 @@
-import {
-  affiliations,
-  authors,
-  comparisonRows,
-  datasetUrl,
-  paperUrl,
-  repoUrl,
-  sources,
-  stats,
-} from "../../data/paper";
+import type { CSSProperties } from "react";
+import { leaderboardEntries } from "../../data/leaderboard";
 import { toAppPath } from "../../lib/site";
 import { Wordmark } from "../brand/Wordmark";
-import { HeroDag } from "./HeroDag";
-import { HeroLinks } from "./HeroLinks";
+import { DualContainerDiagram } from "./DualContainerDiagram";
+
+const currentLeaders = leaderboardEntries
+  .filter((entry) => entry.sweep === "model")
+  .sort((a, b) => b.rrLoop - a.rrLoop)
+  .slice(0, 3);
 
 export function HomePage() {
-  return (
-    <div className="site-container">
-      <section className="hero">
-        <HeroDag />
-        <div className="hero-inner">
-          <p className="eyebrow">Long-horizon coding benchmark</p>
-          <h1>
-            <Wordmark className="wordmark-hero" />: From Harness Engineering to
-            Loop Engineering in Coding Agent Evaluation
-          </h1>
-          <p className="hero-sub">
-            A long-horizon benchmark for loop engineering. Each task is a
-            dependency DAG over separately testable development units, and a
-            flow-aware runtime releases tests along the ready frontier while
-            holding completed units as regression obligations.
-          </p>
-          <p className="authors">
-            {authors.map((a, i) => (
-              <span key={a.name}>
-                {a.href ? <a href={a.href}>{a.name}</a> : a.name}
-                {i < authors.length - 1 ? ", " : ""}
-              </span>
-            ))}
-          </p>
-          <p className="affil">{affiliations}</p>
-          <HeroLinks
-            links={[
-              { label: "Paper", href: paperUrl },
-              { label: "GitHub", href: repoUrl },
-              { label: "Dataset", href: datasetUrl },
-              { label: "Leaderboard", href: toAppPath("/leaderboard") },
-            ]}
-          />
+  const topRate = currentLeaders[0]?.rrLoop ?? 0;
 
-          <div className="stat-strip">
-            {stats.map((s) => (
-              <div className="stat-cell" key={s.label}>
-                <strong>{s.value}</strong>
-                <span>{s.label}</span>
+  return (
+    <div className="home-page">
+      <section className="home-hero" aria-labelledby="home-title">
+        <div className="hero-glow hero-glow-left" aria-hidden="true" />
+        <div className="hero-glow hero-glow-right" aria-hidden="true" />
+        <div className="home-hero-inner">
+          <p className="home-kicker">
+            <span aria-hidden="true" />
+            Long-horizon coding benchmark
+          </p>
+          <h1 id="home-title">
+            <Wordmark className="home-wordmark" />
+          </h1>
+          <p className="home-thesis">
+            From Harness Engineering to Loop Engineering
+            <span>in Coding Agent Evaluation</span>
+          </p>
+          <div className="hero-prompt">
+            <p>Ready to test your loop?</p>
+            <a className="action-button action-button-primary" href={toAppPath("/run")}>
+              Run your loop
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+        <div className="hero-scroll-cue" aria-hidden="true">
+          <span>Explore</span>
+          <i />
+        </div>
+      </section>
+
+      <div className="site-container home-content">
+        <a
+          className="performance-preview"
+          href={toAppPath("/leaderboard")}
+          aria-label={`View the leaderboard. The current top resolve rate is ${topRate.toFixed(2)} percent.`}
+        >
+          <div className="performance-heading">
+            <div>
+              <p className="section-index">01 / Current frontier</p>
+              <h2>Most tasks are still unresolved.</h2>
+            </div>
+            <span className="inline-destination">
+              Full leaderboard <span aria-hidden="true">↗</span>
+            </span>
+          </div>
+
+          <div className="performance-summary">
+            <div className="top-rate">
+              <strong>{topRate.toFixed(2)}%</strong>
+              <span>best resolve rate</span>
+            </div>
+            <p>
+              The best reported configuration completes only one in four
+              long-horizon tasks. The remaining track is the opportunity for
+              better loops.
+            </p>
+          </div>
+
+          <div className="performance-bars" aria-hidden="true">
+            {currentLeaders.map((entry) => (
+              <div className="performance-row" key={entry.id}>
+                <div className="performance-label">
+                  <span>{entry.model}</span>
+                  <small>{entry.loop}</small>
+                </div>
+                <div className="performance-track">
+                  <span
+                    className="performance-fill"
+                    style={{ "--resolve-rate": `${entry.rrLoop}%` } as CSSProperties}
+                  />
+                  <i className="performance-marker" style={{ left: `${entry.rrLoop}%` }} />
+                </div>
+                <strong>{entry.rrLoop.toFixed(2)}%</strong>
               </div>
             ))}
           </div>
-        </div>
-      </section>
 
-      <section className="home-section">
-        <h2>Three authentic sources</h2>
-        <p className="section-lede">
-          112 tasks recovered from real development records, with prerequisite
-          structure taken from source evidence rather than fabricated
-          decompositions.
-        </p>
-        <div className="source-grid">
-          {sources.map((s) => (
-            <article className="source-card" key={s.title}>
-              <div className="count">{s.count}</div>
-              <h3>{s.title}</h3>
-              <p>{s.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-section">
-        <h2>Where it sits</h2>
-        <p className="section-lede">
-          LoopsBench pairs an executable dependency DAG with a flow-aware runtime
-          that records loop-trace metrics for routing, state retention, and
-          regression obligations.
-        </p>
-        <div className="data-section">
-          <div className="table-frame">
-            <table>
-              <thead>
-                <tr>
-                  <th>Benchmark</th>
-                  <th>Multi-unit</th>
-                  <th>DAG</th>
-                  <th className="numeric">Patch</th>
-                  <th className="numeric">Tests</th>
-                  <th className="numeric">Human time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonRows.map((r) => (
-                  <tr key={r.name}>
-                    <td>{r.self ? <strong style={{ color: "var(--accent)" }}>{r.name}</strong> : r.name}</td>
-                    <td>{r.multi ? "yes" : "no"}</td>
-                    <td>{r.dag ? "yes" : "no"}</td>
-                    <td className="numeric">{r.patch}</td>
-                    <td className="numeric">{r.tests}</td>
-                    <td className="numeric">{r.time}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="performance-scale" aria-hidden="true">
+            <span>0</span>
+            <span>25</span>
+            <span>50</span>
+            <span>75</span>
+            <span>100%</span>
           </div>
-        </div>
-      </section>
-
-      <section className="cta-band">
-        <div>
-          <h2>Frontier coding agents stay below complete resolution</h2>
-          <p>The strongest model and loop configuration resolves 25.00% of tasks.</p>
-        </div>
-        <a className="btn btn-primary" href={toAppPath("/leaderboard")}>
-          View leaderboard
         </a>
-      </section>
+
+        <section className="protocol-section" aria-labelledby="protocol-title">
+          <div className="protocol-copy">
+            <div>
+              <p className="section-index">02 / Evaluation protocol</p>
+              <h2 id="protocol-title">Edit here. Test there. Keep moving.</h2>
+            </div>
+            <div className="protocol-intro">
+              <p>
+                Two isolated containers let the coding loop continue while an
+                independent watcher evaluates qualifying workspace snapshots and
+                keeps tests for completed units active as regression obligations.
+              </p>
+              <a className="text-action" href={toAppPath("/about")}>
+                How LoopsBench works <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
+          <DualContainerDiagram />
+        </section>
+      </div>
     </div>
   );
 }

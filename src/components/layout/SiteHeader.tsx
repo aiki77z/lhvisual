@@ -5,7 +5,7 @@ import { getCurrentAppPath, toAppPath } from "../../lib/site";
 
 const navItems = [
   { label: "Home", href: "/" },
-  { label: "Run LoopsBench", href: "/run-loopsbench" },
+  { label: "Run", href: "/run" },
   { label: "Leaderboard", href: "/leaderboard" },
   { label: "About", href: "/about" },
   { label: "GitHub", href: repoUrl },

@@ -1,6 +1,6 @@
 # LoopsBench
 
-Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**. Vite + React + TypeScript, single-page site (home, leaderboard, about) deployed to GitHub Pages.
+Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**. Vite + React + TypeScript, single-page site (home, run guide and replay, leaderboard, about) deployed to GitHub Pages.
 
 ## Local development
 
