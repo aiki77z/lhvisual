@@ -1,0 +1,44 @@
+[project]
+name = "loopsbench-submission-service"
+version = "0.1.0"
+description = "Submission API and worker for LoopsBench web task intake."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116.0",
+    "httpx>=0.28.1",
+    "python-multipart>=0.0.20",
+    "pydantic>=2.10.5",
+    "pyyaml>=6.0.2",
+    "redis>=5.2.1",
+    "rq>=1.16.2",
+    "sqlalchemy>=2.0.36",
+    "uvicorn>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.4",
+]
+runner = [
+    "anthropic>=0.45.2",
+    "docker>=7.1.0",
+    "openai>=1.59.9",
+    "ruamel-yaml>=0.18.10",
+    "rich>=13.7.0",
+    "tabulate>=0.9.0",
+    "tenacity>=9.0.0",
+    "tqdm>=4.67.1",
+    "typer>=0.16.0",
+    "litellm>=1.67.5",
+    "jinja2>=3.1.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.26.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

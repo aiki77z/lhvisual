@@ -7,6 +7,7 @@ const navItems = [
   { label: "Home", href: "/" },
   { label: "Run", href: "/run" },
   { label: "Leaderboard", href: "/leaderboard" },
+  { label: "Submit Task", href: "/submit-task" },
   { label: "About", href: "/about" },
   { label: "GitHub", href: repoUrl },
 ];
@@ -27,7 +28,13 @@ export function SiteHeader() {
           {navItems.map((item) => (
             <a
               key={item.label}
-              className={item.href === path ? "nav-active" : ""}
+              className={
+                item.href !== "/" && (path === item.href || path.startsWith(`${item.href}/`))
+                  ? "nav-active"
+                  : item.href === path
+                    ? "nav-active"
+                    : ""
+              }
               href={toAppPath(item.href)}
             >
               {item.label}

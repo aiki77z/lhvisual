@@ -3,6 +3,8 @@ import { HomePage } from "./components/home/HomePage";
 import { PageShell } from "./components/layout/PageShell";
 import { LeaderboardPage } from "./components/leaderboard/LeaderboardPage";
 import { RunLoopsBenchPage } from "./components/run/RunLoopsBenchPage";
+import { SubmissionStatusPage } from "./components/submit/SubmissionStatusPage";
+import { SubmitTaskPage } from "./components/submit/SubmitTaskPage";
 import { getCurrentAppPath, toAppPath } from "./lib/site";
 
 export function App() {
@@ -16,6 +18,10 @@ export function App() {
     page = <RunLoopsBenchPage />;
   } else if (path === "/leaderboard") {
     page = <LeaderboardPage />;
+  } else if (path === "/submit-task") {
+    page = <SubmitTaskPage />;
+  } else if (path === "/submit-task/status") {
+    page = <SubmissionStatusPage />;
   } else if (path === "/about") {
     page = <AboutPage />;
   } else {
