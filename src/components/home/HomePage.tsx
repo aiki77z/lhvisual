@@ -18,10 +18,6 @@ export function HomePage() {
         <div className="hero-glow hero-glow-left" aria-hidden="true" />
         <div className="hero-glow hero-glow-right" aria-hidden="true" />
         <div className="home-hero-inner">
-          <p className="home-kicker">
-            <span aria-hidden="true" />
-            Long-horizon coding benchmark
-          </p>
           <h1 id="home-title">
             <Wordmark className="home-wordmark" />
           </h1>
@@ -30,7 +26,6 @@ export function HomePage() {
             <span>in Coding Agent Evaluation</span>
           </p>
           <div className="hero-prompt">
-            <p>Ready to test your loop?</p>
             <a className="action-button action-button-primary" href={toAppPath("/run")}>
               Run your loop
               <span aria-hidden="true">↗</span>
@@ -51,8 +46,8 @@ export function HomePage() {
         >
           <div className="performance-heading">
             <div>
-              <p className="section-index">01 / Current frontier</p>
-              <h2>Most tasks are still unresolved.</h2>
+              <p className="section-index">Current frontier</p>
+              <h2>The leading configuration resolves 25% of tasks.</h2>
             </div>
             <span className="inline-destination">
               Full leaderboard <span aria-hidden="true">↗</span>
@@ -102,8 +97,8 @@ export function HomePage() {
         <section className="protocol-section" aria-labelledby="protocol-title">
           <div className="protocol-copy">
             <div>
-              <p className="section-index">02 / Evaluation protocol</p>
-              <h2 id="protocol-title">Edit here. Test there. Keep moving.</h2>
+              <p className="section-index">Evaluation protocol</p>
+              <h2 id="protocol-title">Dual-container snapshot evaluation</h2>
             </div>
             <div className="protocol-intro">
               <p>
