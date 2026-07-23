@@ -33,6 +33,7 @@ class SubmissionRead(BaseModel):
     status: str
     author_name: str
     author_email: str
+    github_login: str | None
     source_repo_url: str
     source_commit_sha: str
     summary: str
@@ -59,3 +60,18 @@ class HealthResponse(BaseModel):
     status: str
     process_inline: bool
     queue_name: str
+
+
+class GitHubUserRead(BaseModel):
+    github_user_id: int
+    login: str
+    name: str | None
+    email: str | None
+    avatar_url: str | None
+    profile_url: str | None
+    scopes: list[str]
+
+
+class GitHubSessionRead(BaseModel):
+    authenticated: bool
+    user: GitHubUserRead | None

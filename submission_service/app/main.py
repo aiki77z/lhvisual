@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from submission_service.app.api.routes.github import router as github_router
 from submission_service.app.api.routes.health import router as health_router
 from submission_service.app.api.routes.submissions import SimpleRateLimiter, router as submissions_router
 from submission_service.app.config import AppConfig, load_config
@@ -29,11 +30,12 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=resolved_config.api_allowed_origins,
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     app.include_router(health_router, prefix="/api/v1")
+    app.include_router(github_router, prefix="/api/v1")
     app.include_router(submissions_router, prefix="/api/v1")
     return app
 

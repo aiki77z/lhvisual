@@ -1,9 +1,15 @@
-import { FormEvent, useRef, useState } from "react";
-import type { SubmissionFormInput } from "../../types/submission";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import type { GitHubSessionState, SubmissionFormInput } from "../../types/submission";
 
 type SubmissionFormProps = {
   submitting: boolean;
   error: string | null;
+  githubError: string | null;
+  githubSession: GitHubSessionState | null;
+  githubSessionLoading: boolean;
+  githubActionBusy: boolean;
+  onConnectGitHub(): void;
+  onDisconnectGitHub(): Promise<void>;
   onSubmit(input: SubmissionFormInput): Promise<void>;
 };
 
@@ -31,11 +37,36 @@ const initialState: FormState = {
   archive: null,
 };
 
-export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormProps) {
+export function SubmissionForm({
+  submitting,
+  error,
+  githubError,
+  githubSession,
+  githubSessionLoading,
+  githubActionBusy,
+  onConnectGitHub,
+  onDisconnectGitHub,
+  onSubmit,
+}: SubmissionFormProps) {
   const [state, setState] = useState<FormState>(initialState);
   const [localError, setLocalError] = useState<string | null>(null);
   const archiveInputRef = useRef<HTMLInputElement>(null);
+  const githubUser = githubSession?.authenticated ? githubSession.user : null;
+  const isGitHubConnected = githubUser !== null;
+
+  useEffect(() => {
+    if (!githubUser) {
+      return;
+    }
+    setState((current) => ({
+      ...current,
+      authorName: current.authorName || githubUser.name || githubUser.login,
+      authorEmail: current.authorEmail || githubUser.email || current.authorEmail,
+    }));
+  }, [githubUser]);
+
   const isFormComplete =
+    isGitHubConnected &&
     state.taskId.trim().length > 0 &&
     state.authorName.trim().length > 0 &&
     state.authorEmail.trim().length > 0 &&
@@ -70,6 +101,56 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
 
   return (
     <form className="submission-form" onSubmit={handleSubmit}>
+      <section className="github-auth-card">
+        <div className="github-auth-card-head">
+          <div>
+            <span>GitHub account</span>
+            {githubSessionLoading ? (
+              <p className="submit-muted">Checking GitHub session...</p>
+            ) : isGitHubConnected ? (
+              <p className="submit-muted">
+                Connected as
+                {" "}
+                <strong>@{githubUser.login}</strong>
+                . If Oracle passes, the backend will fork and open the PR from this account.
+              </p>
+            ) : (
+              <p className="submit-muted">
+                Connect GitHub before submitting. The final PR will be opened from your own account, not from the LoopsBench server.
+              </p>
+            )}
+          </div>
+          {isGitHubConnected ? (
+            <button
+              className="github-auth-button secondary"
+              disabled={githubActionBusy || submitting}
+              type="button"
+              onClick={() => {
+                void onDisconnectGitHub();
+              }}
+            >
+              {githubActionBusy ? "Disconnecting..." : "Disconnect"}
+            </button>
+          ) : (
+            <button
+              className="github-auth-button"
+              disabled={githubActionBusy || githubSessionLoading || submitting}
+              type="button"
+              onClick={onConnectGitHub}
+            >
+              {githubActionBusy ? "Connecting..." : "Connect GitHub"}
+            </button>
+          )}
+        </div>
+        {githubUser && (
+          <div className="github-auth-meta">
+            <span>@{githubUser.login}</span>
+            {githubUser.email && <span>{githubUser.email}</span>}
+            {githubUser.scopes.length > 0 && <span>{githubUser.scopes.join(", ")}</span>}
+          </div>
+        )}
+      </section>
+
       <label>
         <span>Task ID</span>
         <input
@@ -191,7 +272,7 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
         <span>I confirm I have the right to submit this task and understand that successful submissions may become a public PR.</span>
       </label>
 
-      {(localError || error) && <p className="submission-error">{localError || error}</p>}
+      {(localError || error || githubError) && <p className="submission-error">{localError || error || githubError}</p>}
 
       <button className="submit-button" disabled={submitting || !isFormComplete} type="submit">
         {submitting ? "Submitting..." : "Submit task"}

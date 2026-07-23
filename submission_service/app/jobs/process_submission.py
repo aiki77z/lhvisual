@@ -6,8 +6,9 @@ from uuid import uuid4
 
 from submission_service.app.config import AppConfig, load_config
 from submission_service.app.db import create_engine_and_session_factory, init_db
-from submission_service.app.models import Submission, SubmissionStatus
-from submission_service.app.services.github_pr import GitHubPRService, PRCreationError
+from submission_service.app.models import GitHubIdentity, Submission, SubmissionStatus
+from submission_service.app.services.github_auth import decrypt_access_token
+from submission_service.app.services.github_pr import ContributorGitHubAuth, GitHubPRService, PRCreationError
 from submission_service.app.services.oracle_runner import OracleRunError, run_oracle
 from submission_service.app.services.preflight import PreflightError, extract_and_validate_bundle
 from submission_service.app.services.repo_checkout import RepoPreparationError, prepare_repo_checkout
@@ -88,12 +89,30 @@ def _process_submission_impl(submission_id: str, *, config: AppConfig) -> None:
                 "Oracle passed; creating Draft PR.",
             )
             session.commit()
+            submission_identity = submission.github_identity
+            if submission_identity is None:
+                raise PRCreationError(
+                    "missing_submission_github_identity",
+                    "submission is not linked to a GitHub contributor",
+                )
+            contributor_record = session.get(GitHubIdentity, submission_identity.github_user_id)
+            if contributor_record is None:
+                raise PRCreationError(
+                    "missing_github_identity",
+                    "linked GitHub contributor record no longer exists",
+                )
             pr_result = GitHubPRService(config).create_pull_request(
                 repo_dir=repo_result.repo_dir,
                 task_id=submission.task_id,
                 submission_id=submission.id,
                 author_name=submission.author_name,
                 author_email=submission.author_email,
+                contributor=ContributorGitHubAuth(
+                    github_login=submission_identity.github_login,
+                    github_name=submission_identity.github_name or contributor_record.name,
+                    github_email=submission_identity.github_email or contributor_record.email,
+                    access_token=decrypt_access_token(config, contributor_record.access_token_encrypted),
+                ),
                 source_repo_url=submission.source_repo_url,
                 source_commit_sha=submission.source_commit_sha,
                 oracle_run_id=oracle_result.run_id,

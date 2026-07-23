@@ -18,7 +18,7 @@ If you want the submit-task page to talk to a local backend, set `VITE_SUBMISSIO
 
 ## Task submission backend
 
-The backend API and worker live in `submission_service/`. It powers the web flow that accepts a task bundle, runs validation and Oracle, and opens a PR after Oracle passes.
+The backend API and worker live in `submission_service/`. It powers the web flow that accepts a task bundle, runs validation and Oracle, and opens a PR from the submitter's own GitHub account after Oracle passes.
 
 Quick local startup:
 

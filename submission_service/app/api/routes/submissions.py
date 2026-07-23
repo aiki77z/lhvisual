@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 
 from submission_service.app.jobs.process_submission import enqueue_submission_job
-from submission_service.app.models import ACTIVE_SUBMISSION_STATUSES, Submission
+from submission_service.app.models import ACTIVE_SUBMISSION_STATUSES, Submission, SubmissionGitHubIdentity
 from submission_service.app.schemas import (
     LogsIndexResponse,
     SubmissionCreateResponse,
@@ -20,6 +20,7 @@ from submission_service.app.schemas import (
     SubmissionLogRead,
     SubmissionRead,
 )
+from submission_service.app.services.github_auth import require_github_identity
 from submission_service.app.services.status_events import append_event, mark_error
 from submission_service.app.services.storage import (
     StorageError,
@@ -70,6 +71,7 @@ def _submission_to_schema(submission: Submission, request: Request) -> Submissio
         status=submission.status,
         author_name=submission.author_name,
         author_email=submission.author_email,
+        github_login=submission.github_identity.github_login if submission.github_identity is not None else None,
         source_repo_url=submission.source_repo_url,
         source_commit_sha=submission.source_commit_sha,
         summary=submission.summary,
@@ -143,6 +145,7 @@ async def create_submission(
     submission_id = f"subm_{uuid4().hex[:12]}"
     session_factory = request.app.state.session_factory
     with session_factory() as session:
+        github_identity = require_github_identity(request, session)
         window_start = datetime.now(timezone.utc) - timedelta(seconds=config.ip_rate_limit_window_sec)
         recent_by_ip = session.scalar(
             select(func.count()).select_from(Submission).where(
@@ -191,6 +194,13 @@ async def create_submission(
             summary=summary,
             declaration_accepted=declaration_accepted,
             ip_address=client_ip,
+        )
+        submission.github_identity = SubmissionGitHubIdentity(
+            submission_id=submission_id,
+            github_user_id=github_identity.github_user_id,
+            github_login=github_identity.login,
+            github_name=github_identity.name,
+            github_email=github_identity.email,
         )
         append_event(submission, "received", "Submission received by the API.")
         session.add(submission)

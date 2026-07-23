@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import subprocess
 
-from submission_service.app.services.github_pr import GitHubPRService
+from submission_service.app.services.github_pr import ContributorGitHubAuth, GitHubPRService
 from submission_service.tests.conftest import build_test_config
 
 
-def test_dry_run_compare_url_uses_fork_head_ref(tmp_path) -> None:
+def test_dry_run_compare_url_uses_contributor_head_ref(tmp_path) -> None:
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     (repo_dir / "README.md").write_text("seed\n", encoding="utf-8")
@@ -24,8 +24,6 @@ def test_dry_run_compare_url_uses_fork_head_ref(tmp_path) -> None:
         tmp_path,
         process_inline=True,
         github_pr_dry_run=True,
-        push_repo_owner="submission-bot",
-        push_repo_name="Loopsbench",
     )
 
     result = GitHubPRService(config).create_pull_request(
@@ -34,6 +32,12 @@ def test_dry_run_compare_url_uses_fork_head_ref(tmp_path) -> None:
         submission_id="subm_123",
         author_name="Tester",
         author_email="tester@example.com",
+        contributor=ContributorGitHubAuth(
+            github_login="submission-user",
+            github_name="Submission User",
+            github_email="submission@example.com",
+            access_token="gho_test_token",
+        ),
         source_repo_url="https://example.com/source",
         source_commit_sha="abc123",
         oracle_run_id="oracle_1",
@@ -42,4 +46,4 @@ def test_dry_run_compare_url_uses_fork_head_ref(tmp_path) -> None:
     )
 
     assert result.dry_run is True
-    assert result.pr_url.endswith("main...submission-bot:web-submission/task_demo-subm_123?expand=1")
+    assert result.pr_url.endswith("main...submission-user:web-submission/task_demo-subm_123?expand=1")

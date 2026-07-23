@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
+from base64 import urlsafe_b64encode
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -65,6 +67,14 @@ class AppConfig:
     python_executable: str
     github_token: str | None
     github_pr_dry_run: bool
+    github_oauth_client_id: str | None
+    github_oauth_client_secret: str | None
+    github_oauth_redirect_url: str | None
+    github_oauth_scopes: list[str]
+    github_session_cookie_name: str
+    github_session_ttl_sec: int
+    github_session_cookie_secure: bool
+    session_secret: str | None
     git_author_name: str
     git_author_email: str
     oracle_docker_image_strategy: str
@@ -79,6 +89,22 @@ class AppConfig:
         if self.database_url.startswith(prefix):
             return Path(self.database_url[len(prefix) :])
         return None
+
+    @property
+    def github_oauth_enabled(self) -> bool:
+        return bool(
+            self.github_oauth_client_id
+            and self.github_oauth_client_secret
+            and self.github_oauth_redirect_url
+            and self.session_secret
+        )
+
+    @property
+    def token_encryption_key(self) -> bytes:
+        if not self.session_secret:
+            raise RuntimeError("SUBMISSION_SESSION_SECRET is required for GitHub OAuth")
+        digest = hashlib.sha256(self.session_secret.encode("utf-8")).digest()
+        return urlsafe_b64encode(digest)
 
     @classmethod
     def from_env(cls) -> "AppConfig":
@@ -145,6 +171,20 @@ class AppConfig:
             ),
             github_token=os.environ.get("SUBMISSION_GITHUB_TOKEN"),
             github_pr_dry_run=_env_bool("SUBMISSION_GITHUB_PR_DRY_RUN", True),
+            github_oauth_client_id=os.environ.get("SUBMISSION_GITHUB_OAUTH_CLIENT_ID"),
+            github_oauth_client_secret=os.environ.get("SUBMISSION_GITHUB_OAUTH_CLIENT_SECRET"),
+            github_oauth_redirect_url=os.environ.get("SUBMISSION_GITHUB_OAUTH_REDIRECT_URL"),
+            github_oauth_scopes=_env_list(
+                "SUBMISSION_GITHUB_OAUTH_SCOPES",
+                ["public_repo", "read:user", "user:email"],
+            ),
+            github_session_cookie_name=os.environ.get(
+                "SUBMISSION_GITHUB_SESSION_COOKIE_NAME",
+                "loopsbench_github_session",
+            ),
+            github_session_ttl_sec=_env_int("SUBMISSION_GITHUB_SESSION_TTL_SEC", 60 * 60 * 24 * 30),
+            github_session_cookie_secure=_env_bool("SUBMISSION_GITHUB_SESSION_COOKIE_SECURE", True),
+            session_secret=os.environ.get("SUBMISSION_SESSION_SECRET"),
             git_author_name=os.environ.get("SUBMISSION_GIT_AUTHOR_NAME", "LoopsBench Bot"),
             git_author_email=os.environ.get(
                 "SUBMISSION_GIT_AUTHOR_EMAIL",

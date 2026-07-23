@@ -106,6 +106,10 @@ export function SubmissionStatusPage() {
                   <strong>{submission.author_name}</strong>
                 </div>
                 <div>
+                  <span>GitHub</span>
+                  <strong>{submission.github_login ? `@${submission.github_login}` : "not linked"}</strong>
+                </div>
+                <div>
                   <span>Oracle</span>
                   <strong>{submission.oracle_is_resolved ? "passed" : "pending / failed"}</strong>
                 </div>

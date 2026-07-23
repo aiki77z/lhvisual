@@ -1,4 +1,5 @@
 import type {
+  GitHubSessionState,
   SubmissionCreateResponse,
   SubmissionFormInput,
   SubmissionRecord,
@@ -38,6 +39,13 @@ async function parseError(response: Response) {
   return `${response.status} ${response.statusText}`;
 }
 
+function fetchOptions(init?: RequestInit): RequestInit {
+  return {
+    credentials: "include",
+    ...init,
+  };
+}
+
 export async function createSubmission(input: SubmissionFormInput) {
   const body = new FormData();
   body.set("task_id", input.taskId);
@@ -51,6 +59,7 @@ export async function createSubmission(input: SubmissionFormInput) {
   body.set("archive", input.archive);
 
   const response = await fetch(apiUrl("/api/v1/submissions"), {
+    ...fetchOptions(),
     body,
     method: "POST",
   });
@@ -61,9 +70,37 @@ export async function createSubmission(input: SubmissionFormInput) {
 }
 
 export async function getSubmission(submissionId: string) {
-  const response = await fetch(apiUrl(`/api/v1/submissions/${encodeURIComponent(submissionId)}`));
+  const response = await fetch(
+    apiUrl(`/api/v1/submissions/${encodeURIComponent(submissionId)}`),
+    fetchOptions(),
+  );
   if (!response.ok) {
     throw new Error(await parseError(response));
   }
   return (await response.json()) as SubmissionRecord;
+}
+
+export async function getGitHubSession() {
+  const response = await fetch(apiUrl("/api/v1/github/session"), fetchOptions());
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  return (await response.json()) as GitHubSessionState;
+}
+
+export async function logoutGitHubSession() {
+  const response = await fetch(
+    apiUrl("/api/v1/github/logout"),
+    fetchOptions({
+      method: "POST",
+    }),
+  );
+  if (!response.ok) {
+    throw new Error(await parseError(response));
+  }
+  return (await response.json()) as GitHubSessionState;
+}
+
+export function buildGitHubLoginUrl(returnTo: string) {
+  return `${apiUrl("/api/v1/github/login")}?return_to=${encodeURIComponent(returnTo)}`;
 }

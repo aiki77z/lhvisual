@@ -76,6 +76,11 @@ class Submission(Base):
         cascade="all, delete-orphan",
         order_by="SubmissionEvent.created_at",
     )
+    github_identity: Mapped["SubmissionGitHubIdentity | None"] = relationship(
+        back_populates="submission",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class SubmissionEvent(Base):
@@ -88,3 +93,68 @@ class SubmissionEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     submission: Mapped[Submission] = relationship(back_populates="events")
+
+
+class GitHubOAuthState(Base):
+    __tablename__ = "github_oauth_states"
+
+    state: Mapped[str] = mapped_column(String(255), primary_key=True)
+    return_to: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class GitHubIdentity(Base):
+    __tablename__ = "github_identities"
+
+    github_user_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    login: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    profile_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    access_token_encrypted: Mapped[str] = mapped_column(Text)
+    scopes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+    sessions: Mapped[list["GitHubSession"]] = relationship(
+        back_populates="github_identity",
+        cascade="all, delete-orphan",
+    )
+
+
+class GitHubSession(Base):
+    __tablename__ = "github_sessions"
+
+    session_token_hash: Mapped[str] = mapped_column(String(128), primary_key=True)
+    github_user_id: Mapped[int] = mapped_column(
+        ForeignKey("github_identities.github_user_id"),
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    github_identity: Mapped[GitHubIdentity] = relationship(back_populates="sessions")
+
+
+class SubmissionGitHubIdentity(Base):
+    __tablename__ = "submission_github_identities"
+
+    submission_id: Mapped[str] = mapped_column(ForeignKey("submissions.id"), primary_key=True)
+    github_user_id: Mapped[int] = mapped_column(
+        ForeignKey("github_identities.github_user_id"),
+        index=True,
+    )
+    github_login: Mapped[str] = mapped_column(String(255), index=True)
+    github_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    github_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+    submission: Mapped[Submission] = relationship(back_populates="github_identity")
+    github_identity: Mapped[GitHubIdentity] = relationship()

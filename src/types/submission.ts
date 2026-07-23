@@ -29,6 +29,7 @@ export type SubmissionRecord = {
   status: SubmissionStatus;
   author_name: string;
   author_email: string;
+  github_login: string | null;
   source_repo_url: string;
   source_commit_sha: string;
   summary: string;
@@ -62,6 +63,21 @@ export type SubmissionFormInput = {
   summary: string;
   declarationAccepted: boolean;
   archive: File;
+};
+
+export type GitHubSessionUser = {
+  github_user_id: number;
+  login: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  profile_url: string | null;
+  scopes: string[];
+};
+
+export type GitHubSessionState = {
+  authenticated: boolean;
+  user: GitHubSessionUser | null;
 };
 
 export const terminalSubmissionStatuses = new Set<SubmissionStatus>([

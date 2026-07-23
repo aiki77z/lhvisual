@@ -2,7 +2,7 @@
 
 `submission_service/` provides the backend API and worker for the LoopsBench web task submission flow used by the `Submit Task` pages in this repository.
 
-The service accepts complete task bundle archives, runs preflight checks, clones the target benchmark repository, validates the task with `loopsbench tasks validate`, runs Oracle, and opens a Draft PR only if Oracle passes.
+The service accepts complete task bundle archives, runs preflight checks, clones the target benchmark repository, validates the task with `loopsbench tasks validate`, runs Oracle, and opens a Draft PR from the submitter's own GitHub account only if Oracle passes.
 
 ## Layout
 
@@ -40,20 +40,29 @@ Important settings:
 - `SUBMISSION_TARGET_BASE_BRANCH`
   - defaults to `main`
 - `SUBMISSION_PUSH_REPO_OWNER`
-  - defaults to the target repo owner
-  - set this to a writable fork owner if the upstream repo is read-only
+  - legacy field retained for backward compatibility
 - `SUBMISSION_PUSH_REPO_NAME`
-  - defaults to the target repo name
+  - legacy field retained for backward compatibility
 - `SUBMISSION_PUSH_REPO_HTML_URL`
-  - defaults to `https://github.com/<push-owner>/<push-name>`
+  - legacy field retained for backward compatibility
 - `SUBMISSION_PYTHON_EXECUTABLE`
   - Python interpreter used to run the cloned LoopsBench CLI
   - this interpreter must have the LoopsBench runtime dependencies available
 - `SUBMISSION_GITHUB_PR_DRY_RUN`
   - defaults to `true`
-  - when `false`, a real GitHub token is required
-- `SUBMISSION_GITHUB_TOKEN`
-  - GitHub token used for push + PR creation when dry-run mode is disabled
+  - when `false`, contributors must connect GitHub so the backend can fork + push + open PRs with their own accounts
+- `SUBMISSION_GITHUB_OAUTH_CLIENT_ID`
+  - GitHub OAuth app client id
+- `SUBMISSION_GITHUB_OAUTH_CLIENT_SECRET`
+  - GitHub OAuth app client secret
+- `SUBMISSION_GITHUB_OAUTH_REDIRECT_URL`
+  - backend callback URL, for example `https://api.loopsbench.ai/api/v1/github/callback`
+- `SUBMISSION_GITHUB_OAUTH_SCOPES`
+  - comma-separated GitHub OAuth scopes; for a public repo the default `public_repo,read:user,user:email` is sufficient
+- `SUBMISSION_SESSION_SECRET`
+  - random backend secret used to protect stored contributor access tokens
+- `SUBMISSION_GITHUB_SESSION_COOKIE_SECURE`
+  - set to `true` in production HTTPS deployments; set to `false` for local HTTP development
 - `SUBMISSION_ORACLE_DOCKER_IMAGE_STRATEGY`
   - defaults to `local-build` for uploaded task bundles
   - set this to `remote` only if the host has access to the published task image namespace/tag
@@ -133,8 +142,8 @@ grep -o 'https://[-a-z0-9.]*trycloudflare.com' runtime/logs/submission-tunnel.lo
 
 Important deployment caveats:
 
-- If `microsoft/Loopsbench` is not directly writable, configure `SUBMISSION_PUSH_REPO_OWNER` and `SUBMISSION_PUSH_REPO_NAME` to a writable fork.
-- A real PR requires a GitHub token with push access to the configured push repo.
+- A real PR requires GitHub OAuth to be configured so contributors can connect their own accounts.
+- For a public upstream repo, contributors need scopes that allow fork + push + PR creation. For a private upstream repo, contributors also need direct access to that private repository.
 - The GitHub Pages repository build should receive the API URL through `VITE_SUBMISSION_API_BASE`. If it is unset, the production site on `loopsbench.ai` / `www.loopsbench.ai` falls back at runtime to `https://api.loopsbench.ai`.
 
 ## Cleanup Old Artifacts

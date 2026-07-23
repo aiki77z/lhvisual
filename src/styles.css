@@ -2151,6 +2151,70 @@ tbody tr:hover {
   gap: 16px;
 }
 
+.github-auth-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(77, 141, 255, 0.06);
+}
+
+.github-auth-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.github-auth-card-head > div {
+  min-width: 0;
+}
+
+.github-auth-card strong {
+  color: var(--text);
+}
+
+.github-auth-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: rgba(77, 141, 255, 0.18);
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 600;
+}
+
+.github-auth-button.secondary {
+  border-color: var(--border-strong);
+  background: rgba(5, 8, 14, 0.8);
+}
+
+.github-auth-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
+}
+
+.github-auth-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+}
+
+.github-auth-meta span {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(5, 8, 14, 0.55);
+}
+
 .submission-form label {
   display: grid;
   gap: 8px;
@@ -2313,7 +2377,7 @@ tbody tr:hover {
 }
 
 .status-summary-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 20px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
@@ -2502,6 +2566,10 @@ tbody tr:hover {
   .status-head,
   .status-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .github-auth-card-head {
+    flex-direction: column;
   }
 }
 
@@ -2791,6 +2859,10 @@ tbody tr:hover {
 
   .submit-panel {
     padding: 18px 18px 20px;
+  }
+
+  .github-auth-button {
+    width: 100%;
   }
 
   .file-picker-row {

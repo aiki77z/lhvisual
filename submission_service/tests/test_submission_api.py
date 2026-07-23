@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from submission_service.app.main import create_app
-from submission_service.tests.conftest import build_test_config
+from submission_service.tests.conftest import build_test_config, seed_github_session
 
 
 def _seed_target_repo(repo_dir: Path) -> None:
@@ -82,7 +82,12 @@ def test_submission_api_processes_bundle_inline(tmp_path: Path) -> None:
         process_inline=True,
         github_pr_dry_run=True,
     )
-    client = TestClient(create_app(config))
+    app = create_app(config)
+    client = TestClient(app)
+    client.cookies.set(
+        config.github_session_cookie_name,
+        seed_github_session(app.state.session_factory, config, login="contributor-one"),
+    )
     archive_path = _build_valid_archive(tmp_path, "task_inline_submission")
 
     with archive_path.open("rb") as handle:
@@ -109,6 +114,8 @@ def test_submission_api_processes_bundle_inline(tmp_path: Path) -> None:
     assert payload["status"] == "completed"
     assert payload["oracle_is_resolved"] is True
     assert payload["pr_url"].startswith("https://github.com/microsoft/Loopsbench/compare/")
+    assert "contributor-one:web-submission/task_inline_submission-subm_" in payload["pr_url"]
+    assert payload["github_login"] == "contributor-one"
     assert any(event["status"] == "completed" for event in payload["events"])
     assert {log["name"] for log in payload["logs"]} >= {
         "preflight.log",
@@ -116,6 +123,38 @@ def test_submission_api_processes_bundle_inline(tmp_path: Path) -> None:
         "oracle.stdout.log",
         "github_pr.log",
     }
+
+
+def test_submission_api_requires_connected_github(tmp_path: Path) -> None:
+    target_repo = tmp_path / "target-repo"
+    target_repo.mkdir()
+    _seed_target_repo(target_repo)
+    config = build_test_config(
+        tmp_path,
+        target_repo_clone_url=str(target_repo),
+        process_inline=True,
+        github_pr_dry_run=True,
+    )
+    client = TestClient(create_app(config))
+    archive_path = _build_valid_archive(tmp_path, "task_requires_auth")
+
+    with archive_path.open("rb") as handle:
+        response = client.post(
+            "/api/v1/submissions",
+            data={
+                "task_id": "task_requires_auth",
+                "author_name": "Tester",
+                "author_email": "tester@example.com",
+                "source_repo_url": "https://example.com/source",
+                "source_commit_sha": "abc123",
+                "summary": "Should require GitHub auth.",
+                "declaration_accepted": "true",
+            },
+            files={"archive": (archive_path.name, handle, "application/zip")},
+        )
+
+    assert response.status_code == 401, response.text
+    assert response.json()["detail"] == "connect a GitHub account before submitting"
 
 
 def test_submission_api_rejects_honeypot_and_persists_ip_rate_limit(tmp_path: Path) -> None:
@@ -129,7 +168,12 @@ def test_submission_api_rejects_honeypot_and_persists_ip_rate_limit(tmp_path: Pa
         github_pr_dry_run=True,
         max_ip_submissions_per_window=1,
     )
-    client = TestClient(create_app(config))
+    app = create_app(config)
+    client = TestClient(app)
+    client.cookies.set(
+        config.github_session_cookie_name,
+        seed_github_session(app.state.session_factory, config, login="contributor-two"),
+    )
 
     first_archive = _build_valid_archive(tmp_path, "task_ip_limit_one")
     with first_archive.open("rb") as handle:
