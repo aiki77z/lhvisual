@@ -12,6 +12,7 @@ export function SiteFooter() {
         <div className="footer-links" aria-label="Footer links">
           <a href={toAppPath("/run")}>Run</a>
           <a href={toAppPath("/submit-task")}>Submit</a>
+          <a href={toAppPath("/benchmarks")}>Benchmarks</a>
           <a href={toAppPath("/leaderboard")}>Leaderboard</a>
           <a href={toAppPath("/about")}>About</a>
           <a href={repoUrl}>GitHub</a>

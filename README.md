@@ -11,10 +11,12 @@ This repo now contains two pieces:
 
 ```bash
 npm install
+npm run generate:benchmarks
 npm run dev
 ```
 
 If you want the submit-task page to talk to a local backend, set `VITE_SUBMISSION_API_BASE=http://localhost:8000`.
+`npm run generate:benchmarks` rebuilds the static `public/benchmarks-data/` snapshot from the sibling `../tasks/` directory in the main LoopsBench workspace.
 
 ## Task submission backend
 

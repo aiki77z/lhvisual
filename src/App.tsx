@@ -1,4 +1,6 @@
 import { AboutPage } from "./components/about/AboutPage";
+import { BenchmarksPage } from "./components/benchmarks/BenchmarksPage";
+import { BenchmarkTaskPage } from "./components/benchmarks/BenchmarkTaskPage";
 import { HomePage } from "./components/home/HomePage";
 import { PageShell } from "./components/layout/PageShell";
 import { LeaderboardPage } from "./components/leaderboard/LeaderboardPage";
@@ -16,6 +18,11 @@ export function App() {
     page = <HomePage />;
   } else if (path === "/run" || path === "/run-loopsbench") {
     page = <RunLoopsBenchPage />;
+  } else if (path === "/benchmarks") {
+    page = <BenchmarksPage />;
+  } else if (path.startsWith("/benchmarks/")) {
+    const taskId = decodeURIComponent(path.slice("/benchmarks/".length));
+    page = <BenchmarkTaskPage taskId={taskId} />;
   } else if (path === "/leaderboard") {
     page = <LeaderboardPage />;
   } else if (path === "/submit-task") {
