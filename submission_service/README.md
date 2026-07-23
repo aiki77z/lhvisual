@@ -58,7 +58,9 @@ Important settings:
 - `SUBMISSION_GITHUB_OAUTH_REDIRECT_URL`
   - backend callback URL, for example `https://api.loopsbench.ai/api/v1/github/callback`
 - `SUBMISSION_GITHUB_OAUTH_SCOPES`
-  - comma-separated GitHub OAuth scopes; for a public repo the default `public_repo,read:user,user:email` is sufficient
+  - comma-separated GitHub OAuth scopes
+  - for a public repo the default `public_repo,read:user,user:email` is sufficient
+  - while the upstream repo stays private, use `repo,read:user,user:email` and make sure the contributor already has access to that private repo
 - `SUBMISSION_SESSION_SECRET`
   - random backend secret used to protect stored contributor access tokens
 - `SUBMISSION_GITHUB_SESSION_COOKIE_SECURE`

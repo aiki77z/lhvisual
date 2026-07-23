@@ -37,6 +37,7 @@ Important runtime note:
 
 - GitHub Pages only serves the frontend. The backend must run as a separate process on a VM, container, or bare-metal host.
 - Oracle and `loopsbench tasks validate` need a Python interpreter with LoopsBench runtime dependencies available. If the backend virtualenv does not have those dependencies, point `SUBMISSION_PYTHON_EXECUTABLE` at a different interpreter that does.
+- If the upstream `microsoft/Loopsbench` repository is still private, the GitHub OAuth app should request `repo,read:user,user:email`, and the contributor must already have access to that private repo. Once the upstream is public, the scope can drop back to `public_repo,read:user,user:email`.
 
 See `submission_service/README.md` for the backend environment variables and worker mode.
 
