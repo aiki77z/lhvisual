@@ -1,40 +1,18 @@
-import { useEffect, useState } from "react";
-import { DagLayerBars } from "./DagLayerBars";
+import { useDeferredValue, useEffect, useState } from "react";
 import { getBenchmarksIndex } from "../../lib/benchmarksApi";
 import { toAppPath } from "../../lib/site";
-import type {
-  BenchmarkFilterOption,
-  BenchmarkTaskSummary,
-  BenchmarksIndexPayload,
-} from "../../types/benchmarks";
+import type { BenchmarkTaskSummary, BenchmarksIndexPayload } from "../../types/benchmarks";
 
 type FilterState = {
   query: string;
-  categories: string[];
-  tags: string[];
-  difficulties: string[];
+  difficulty: string;
 };
-
-type FilterMenuProps = {
-  label: string;
-  queryLabel: string;
-  options: BenchmarkFilterOption[];
-  selected: string[];
-  onToggle: (value: string) => void;
-  searchable?: boolean;
-};
-
-function uniqSorted(values: string[]) {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
 
 function readFiltersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search);
   return {
     query: params.get("q") ?? "",
-    categories: uniqSorted(params.getAll("category")),
-    tags: uniqSorted(params.getAll("tag")),
-    difficulties: uniqSorted(params.getAll("difficulty")),
+    difficulty: params.get("difficulty") ?? "",
   };
 }
 
@@ -43,134 +21,65 @@ function writeFiltersToUrl(filters: FilterState) {
   if (filters.query.trim()) {
     params.set("q", filters.query.trim());
   }
-  filters.categories.forEach((value) => params.append("category", value));
-  filters.tags.forEach((value) => params.append("tag", value));
-  filters.difficulties.forEach((value) => params.append("difficulty", value));
+  if (filters.difficulty) {
+    params.set("difficulty", filters.difficulty);
+  }
+
   const path = toAppPath("/benchmarks");
   const nextUrl = params.toString() ? `${path}?${params.toString()}` : path;
   window.history.replaceState(null, "", nextUrl);
-}
-
-function toggleValue(values: string[], value: string) {
-  return values.includes(value)
-    ? values.filter((item) => item !== value)
-    : uniqSorted([...values, value]);
 }
 
 function formatDifficulty(value: string) {
   return value.replace(/_/g, " ");
 }
 
-function FilterMenu({
-  label,
-  queryLabel,
-  options,
-  selected,
-  onToggle,
-  searchable = false,
-}: FilterMenuProps) {
-  const [localQuery, setLocalQuery] = useState("");
-  const selectedSet = new Set(selected);
-  const normalizedQuery = localQuery.trim().toLowerCase();
-  const defaultLimit = 60;
-  const visibleOptions = options.filter((option, index) => {
-    if (normalizedQuery) {
-      return option.value.toLowerCase().includes(normalizedQuery);
-    }
-    return selectedSet.has(option.value) || index < defaultLimit;
-  });
-
-  return (
-    <details className="benchmark-filter-menu">
-      <summary>
-        <span>{selected.length > 0 ? `${label} · ${selected.length}` : `Select ${queryLabel}`}</span>
-      </summary>
-      <div className="benchmark-filter-panel">
-        {searchable ? (
-          <input
-            className="benchmark-filter-search"
-            type="search"
-            value={localQuery}
-            placeholder={`Search ${queryLabel}`}
-            onChange={(event) => setLocalQuery(event.target.value)}
-          />
-        ) : null}
-        <div className="benchmark-filter-options">
-          {visibleOptions.map((option) => (
-            <label className="benchmark-filter-option" key={option.value}>
-              <input
-                type="checkbox"
-                checked={selectedSet.has(option.value)}
-                onChange={() => onToggle(option.value)}
-              />
-              <span>{option.value}</span>
-              <small>{option.count}</small>
-            </label>
-          ))}
-          {!visibleOptions.length ? (
-            <p className="benchmark-filter-empty">No {queryLabel} match the current search.</p>
-          ) : null}
-        </div>
-      </div>
-    </details>
-  );
-}
-
 function TaskCard({ task }: { task: BenchmarkTaskSummary }) {
   const taskHref = toAppPath(`/benchmarks/${encodeURIComponent(task.id)}`);
+  const preview = task.instructionPreview || task.summary;
+  const tags = task.tags.slice(0, 4).join(", ");
+
   return (
-    <article className="benchmark-card">
-      <div className="benchmark-card-header">
-        <div>
-          <p className="benchmark-card-task-id">{task.taskName}</p>
-          <h2>
+    <article className="registry-card">
+      <div className="registry-card-head">
+        <div className="registry-card-titleblock">
+          <p className="registry-card-task-id">{task.taskName}</p>
+          <h2 className="registry-card-title">
             <a href={taskHref}>{task.title}</a>
           </h2>
         </div>
-        <a className="benchmark-inline-link" href={task.repoUrl} target="_blank" rel="noreferrer">
+        <a className="registry-card-link" href={task.repoUrl} target="_blank" rel="noreferrer">
           GitHub
         </a>
       </div>
 
-      <div className="benchmark-badges">
-        <span className="benchmark-badge">{task.category}</span>
-        <span className="benchmark-badge">{formatDifficulty(task.difficulty)}</span>
+      <div className="registry-card-meta">
+        <span className="registry-badge">{task.category}</span>
+        <span className="registry-badge">{formatDifficulty(task.difficulty)}</span>
       </div>
 
-      <p className="benchmark-card-summary">{task.summary}</p>
+      <p className="registry-card-preview">{preview}</p>
 
-      <div className="benchmark-card-metrics">
-        <span>{task.moduleNodeCount.toLocaleString()} modules</span>
-        <span>{task.unitCount.toLocaleString()} units</span>
-        <span>{task.unitLayerCount.toLocaleString()} layers</span>
-      </div>
+      {tags ? <p className="registry-card-tags">{tags}</p> : null}
 
-      <DagLayerBars layers={task.dagPreview.unitLayers} compact />
-
-      <p className="benchmark-card-tags">
-        {task.tags.slice(0, 4).join(" · ")}
-        {task.tags.length > 4 ? ` · +${task.tags.length - 4}` : ""}
-      </p>
-
-      <div className="benchmark-card-footer">
+      <div className="registry-card-foot">
         <span>Created by {task.authorName}</span>
-        <a className="benchmark-card-link" href={taskHref}>
-          Open task
-        </a>
+        <small>
+          {task.moduleNodeCount.toLocaleString()} modules · {task.unitCount.toLocaleString()} units
+        </small>
       </div>
     </article>
   );
 }
 
 export function BenchmarksPage() {
+  const initialFilters = readFiltersFromUrl();
   const [payload, setPayload] = useState<BenchmarksIndexPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const initialFilters = readFiltersFromUrl();
   const [query, setQuery] = useState(initialFilters.query);
-  const [selectedCategories, setSelectedCategories] = useState(initialFilters.categories);
-  const [selectedTags, setSelectedTags] = useState(initialFilters.tags);
-  const [selectedDifficulties, setSelectedDifficulties] = useState(initialFilters.difficulties);
+  const [difficulty, setDifficulty] = useState(initialFilters.difficulty);
+  const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
     void getBenchmarksIndex()
@@ -181,130 +90,81 @@ export function BenchmarksPage() {
       .catch((nextError: unknown) => {
         setError(nextError instanceof Error ? nextError.message : "Failed to load benchmarks.");
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    writeFiltersToUrl({
-      query,
-      categories: selectedCategories,
-      tags: selectedTags,
-      difficulties: selectedDifficulties,
-    });
-  }, [query, selectedCategories, selectedTags, selectedDifficulties]);
+    writeFiltersToUrl({ query, difficulty });
+  }, [query, difficulty]);
 
-  const filteredTasks = (payload?.tasks ?? []).filter((task) => {
-    const searchNeedle = query.trim().toLowerCase();
-    if (searchNeedle) {
-      const haystack = [
-        task.id,
-        task.taskName,
-        task.title,
-        task.summary,
-        task.category,
-        task.authorName,
-        ...task.tags,
-      ]
-        .join("\n")
-        .toLowerCase();
-      if (!haystack.includes(searchNeedle)) {
+  const filteredTasks = (payload?.tasks ?? [])
+    .filter((task) => {
+      const searchNeedle = deferredQuery.trim().toLowerCase();
+      if (searchNeedle) {
+        const haystack = [
+          task.id,
+          task.taskName,
+          task.title,
+          task.summary,
+          task.instructionPreview,
+          task.category,
+          task.authorName,
+          ...task.tags,
+        ]
+          .join("\n")
+          .toLowerCase();
+
+        if (!haystack.includes(searchNeedle)) {
+          return false;
+        }
+      }
+
+      if (difficulty && task.difficulty !== difficulty) {
         return false;
       }
-    }
 
-    if (selectedCategories.length > 0 && !selectedCategories.includes(task.category)) {
-      return false;
-    }
-    if (selectedDifficulties.length > 0 && !selectedDifficulties.includes(task.difficulty)) {
-      return false;
-    }
-    if (selectedTags.length > 0 && !selectedTags.some((tag) => task.tags.includes(tag))) {
-      return false;
-    }
+      return true;
+    })
+    .sort((left, right) => left.taskName.localeCompare(right.taskName));
 
-    return true;
-  });
-
-  const hasActiveFilters =
-    Boolean(query.trim()) ||
-    selectedCategories.length > 0 ||
-    selectedTags.length > 0 ||
-    selectedDifficulties.length > 0;
-
-  const summaryCards = payload
-    ? [
-        {
-          label: "Tasks",
-          value: payload.benchmark.taskCount.toLocaleString(),
-          detail: "dependency-native task bundles",
-        },
-        {
-          label: "Development Units",
-          value: payload.benchmark.totalUnits.toLocaleString(),
-          detail: `${payload.benchmark.totalTestedUnits.toLocaleString()} directly test-coupled`,
-        },
-        {
-          label: "Median Unit Depth",
-          value: payload.benchmark.medianUnitLayers.toLocaleString(),
-          detail: `${payload.benchmark.categoryCount.toLocaleString()} categories`,
-        },
-        {
-          label: "Tags",
-          value: payload.benchmark.tagCount.toLocaleString(),
-          detail: "searchable task signals",
-        },
-      ]
-    : [];
+  const totalCount = payload?.tasks.length ?? 0;
+  const filteredCount = filteredTasks.length;
+  const hasActiveFilters = Boolean(query.trim()) || Boolean(difficulty);
+  const countLabel = loading
+    ? "Loading tasks..."
+    : hasActiveFilters
+      ? `Showing ${filteredCount.toLocaleString()} of ${totalCount.toLocaleString()} tasks`
+      : `Showing ${totalCount.toLocaleString()} tasks`;
 
   return (
-    <div className="site-container page-stack">
-      <section className="lb-hero">
-        <p className="eyebrow">Benchmarks</p>
-        <h1>Browse LoopsBench tasks</h1>
-        <p>
-          Explore all LoopsBench tasks, filter by domain or difficulty, and open a task page to inspect the
-          module DAG against the full unit-level execution scale.
-        </p>
-      </section>
+    <div className="benchmarks-index-page">
+      <div className="benchmarks-index-inner">
+        <nav className="registry-breadcrumbs" aria-label="Breadcrumb">
+          <a href={toAppPath("/")}>Home</a>
+          <span>&gt;</span>
+          <span>Benchmarks</span>
+        </nav>
 
-      {payload ? (
-        <div className="summary-grid">
-          {summaryCards.map((card) => (
-            <article className="summary-card" key={card.label}>
-              <p>{card.label}</p>
-              <strong>{card.value}</strong>
-              <span>{card.detail}</span>
-            </article>
-          ))}
-        </div>
-      ) : null}
-
-      <section className="benchmark-browser">
-        <div className="benchmark-browser-head">
-          <p>
-            {loading
-              ? "Loading tasks..."
-              : `Showing ${filteredTasks.length.toLocaleString()} of ${(payload?.tasks.length ?? 0).toLocaleString()} tasks`}
-          </p>
+        <header className="registry-page-header">
+          <div>
+            <h1 className="registry-page-title">Benchmarks</h1>
+            <p className="registry-page-subtitle">{countLabel}</p>
+          </div>
           <button
-            className="benchmark-clear-button"
+            className="registry-clear-button"
             type="button"
             disabled={!hasActiveFilters}
             onClick={() => {
               setQuery("");
-              setSelectedCategories([]);
-              setSelectedTags([]);
-              setSelectedDifficulties([]);
+              setDifficulty("");
             }}
           >
             Clear filters
           </button>
-        </div>
+        </header>
 
-        <div className="benchmark-controls">
-          <label className="benchmark-search">
+        <section className="registry-filterbar" aria-label="Benchmark filters">
+          <label className="registry-search-field">
             <input
               type="search"
               value={query}
@@ -313,44 +173,33 @@ export function BenchmarksPage() {
             />
           </label>
 
-          <div className="benchmark-filter-row">
-            <FilterMenu
-              label="Categories"
-              queryLabel="categories"
-              options={payload?.filters.categories ?? []}
-              selected={selectedCategories}
-              onToggle={(value) => setSelectedCategories((current) => toggleValue(current, value))}
-              searchable
-            />
-            <FilterMenu
-              label="Tags"
-              queryLabel="tags"
-              options={payload?.filters.tags ?? []}
-              selected={selectedTags}
-              onToggle={(value) => setSelectedTags((current) => toggleValue(current, value))}
-              searchable
-            />
-            <FilterMenu
-              label="Difficulty"
-              queryLabel="difficulty"
-              options={payload?.filters.difficulties ?? []}
-              selected={selectedDifficulties}
-              onToggle={(value) => setSelectedDifficulties((current) => toggleValue(current, value))}
-            />
-          </div>
-        </div>
+          <label className="registry-select-shell">
+            <select
+              className={difficulty ? "registry-select-filled" : ""}
+              value={difficulty}
+              onChange={(event) => setDifficulty(event.target.value)}
+            >
+              <option value="">Select difficulty</option>
+              {(payload?.filters.difficulties ?? []).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {formatDifficulty(option.value)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </section>
 
-        {error ? <p className="benchmark-state">{error}</p> : null}
+        {error ? <p className="registry-empty-state">{error}</p> : null}
         {!loading && !error && filteredTasks.length === 0 ? (
-          <p className="benchmark-state">No tasks match the current filters.</p>
+          <p className="registry-empty-state">No tasks match the current filters.</p>
         ) : null}
 
-        <div className="benchmark-grid">
+        <section className="registry-grid" aria-label="LoopsBench tasks">
           {filteredTasks.map((task) => (
             <TaskCard key={task.id} task={task} />
           ))}
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
