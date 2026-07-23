@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import type { SubmissionFormInput } from "../../types/submission";
 
 type SubmissionFormProps = {
@@ -34,6 +34,16 @@ const initialState: FormState = {
 export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormProps) {
   const [state, setState] = useState<FormState>(initialState);
   const [localError, setLocalError] = useState<string | null>(null);
+  const archiveInputRef = useRef<HTMLInputElement>(null);
+  const isFormComplete =
+    state.taskId.trim().length > 0 &&
+    state.authorName.trim().length > 0 &&
+    state.authorEmail.trim().length > 0 &&
+    state.sourceRepoUrl.trim().length > 0 &&
+    state.sourceCommitSha.trim().length > 0 &&
+    state.summary.trim().length > 0 &&
+    state.declarationAccepted &&
+    state.archive !== null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -112,6 +122,7 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
           onChange={(event) => setState((current) => ({ ...current, sourceRepoUrl: event.target.value }))}
           placeholder="https://github.com/your-org/your-source-repo"
         />
+        <small>Link to the repository that this task bundle came from, so reviewers can trace its source.</small>
       </label>
 
       <label>
@@ -123,6 +134,7 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
           onChange={(event) => setState((current) => ({ ...current, sourceCommitSha: event.target.value }))}
           placeholder="abc1234"
         />
+        <small>Git commit hash for the exact source snapshot used to prepare this submission.</small>
       </label>
 
       <label>
@@ -134,12 +146,14 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
           onChange={(event) => setState((current) => ({ ...current, summary: event.target.value }))}
           placeholder="What does this task cover, and what evidence should reviewers look at?"
         />
+        <small>Short reviewer note describing the task, the intended behavior, and what Oracle should verify.</small>
       </label>
 
       <label>
         <span>Task bundle archive</span>
         <input
-          required
+          ref={archiveInputRef}
+          className="file-input-native"
           type="file"
           accept=".zip,.tar.gz,.tgz"
           onChange={(event) =>
@@ -149,6 +163,16 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
             }))
           }
         />
+        <div className="file-picker">
+          <div className="file-picker-row">
+            <button className="file-picker-button" type="button" onClick={() => archiveInputRef.current?.click()}>
+              Choose file
+            </button>
+            <span className={`file-picker-name${state.archive ? " has-file" : ""}`} aria-live="polite">
+              {state.archive?.name ?? "No file selected"}
+            </span>
+          </div>
+        </div>
         <small>Accepted formats: `.zip`, `.tar.gz`, `.tgz`. Top level must be a single `task_&lt;slug&gt;/` directory.</small>
       </label>
 
@@ -169,7 +193,7 @@ export function SubmissionForm({ submitting, error, onSubmit }: SubmissionFormPr
 
       {(localError || error) && <p className="submission-error">{localError || error}</p>}
 
-      <button className="submit-button" disabled={submitting} type="submit">
+      <button className="submit-button" disabled={submitting || !isFormComplete} type="submit">
         {submitting ? "Submitting..." : "Submit task"}
       </button>
     </form>

@@ -2177,7 +2177,6 @@ tbody tr:hover {
 .submission-form input[type="text"],
 .submission-form input[type="email"],
 .submission-form input[type="url"],
-.submission-form input[type="file"],
 .submission-form textarea {
   width: 100%;
   padding: 12px 14px;
@@ -2189,6 +2188,63 @@ tbody tr:hover {
 
 .submission-form textarea {
   resize: vertical;
+}
+
+.file-input-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.file-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.file-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-picker-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgba(5, 8, 14, 0.8);
+  color: var(--text);
+  font-family: var(--display);
+  font-weight: 600;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.file-picker-button:hover,
+.file-picker-button:focus-visible {
+  border-color: var(--accent);
+  background: rgba(77, 141, 255, 0.12);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.file-picker-name {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  word-break: break-word;
+}
+
+.file-picker-name.has-file {
+  color: var(--text);
 }
 
 .submission-grid-two {
@@ -2219,8 +2275,8 @@ tbody tr:hover {
 }
 
 .submit-button:disabled {
-  cursor: default;
-  opacity: 0.72;
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .submit-checklist,
@@ -2736,6 +2792,16 @@ tbody tr:hover {
   .submit-panel {
     padding: 18px 18px 20px;
   }
+
+  .file-picker-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .file-picker-button {
+    width: 100%;
+  }
+
   .timeline-head {
     flex-direction: column;
     align-items: flex-start;
