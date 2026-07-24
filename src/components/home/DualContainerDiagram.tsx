@@ -28,37 +28,41 @@ const backgroundTerms = [
   { text: "observation_history.jsonl", className: "term-h" },
 ];
 
-// Geometry of the lemniscate the particle rides. Two lobes centered at cx +/- span.
+// The loop is one closed curve that morphs between a circle (morph=0) and a
+// full lemniscate / infinity sign (morph=1). Same parameter t indexes matching
+// points on both shapes so they interpolate smoothly.
 type LoopGeometry = {
   cx: number;
   cy: number;
-  span: number; // horizontal distance from center to each lobe center
-  lobe: number; // lobe radius
+  radius: number; // circle radius at rest
+  reach: number; // half-width of each infinity lobe
+  height: number; // vertical extent of each lobe
   points: number; // samples per closed path
-  amp: number; // max outward deformation in px
 };
 
-const desktopGeo: LoopGeometry = { cx: 500, cy: 230, span: 90, lobe: 90, points: 120, amp: 26 };
-const mobileGeo: LoopGeometry = { cx: 180, cy: 350, span: 55, lobe: 55, points: 120, amp: 18 };
+const desktopGeo: LoopGeometry = { cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 160 };
+const mobileGeo: LoopGeometry = { cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 160 };
 
-// Parametric lemniscate of Gerono-like figure eight, t in [0, 2pi).
-// Returns the rest position and outward normal for a given parameter.
-function loopPoint(geo: LoopGeometry, t: number) {
+// Point on the rest circle for parameter t in [0, 2pi).
+function circlePoint(geo: LoopGeometry, t: number) {
+  return { x: geo.cx + geo.radius * Math.cos(t), y: geo.cy + geo.radius * Math.sin(t) };
+}
+
+// Point on the lemniscate (figure eight) for the same t. Gerono form: the curve
+// sweeps out to +reach, back through the waist, out to -reach, and home.
+function infinityPoint(geo: LoopGeometry, t: number) {
   const s = Math.sin(t);
   const c = Math.cos(t);
-  // Base figure-eight: x sweeps two lobes, y crosses zero at the waist.
-  const x = geo.cx + (geo.span + geo.lobe) * s;
-  const y = geo.cy + geo.lobe * s * c;
-  // Outward normal via derivative.
-  const dx = (geo.span + geo.lobe) * c;
-  const dy = geo.lobe * (c * c - s * s);
-  const len = Math.hypot(dx, dy) || 1;
-  // Normal points away from the horizontal axis for a pleasing bulge.
-  const nx = -dy / len;
-  const ny = dx / len;
-  const sign = y >= geo.cy ? 1 : -1;
-  return { x, y, nx: nx * sign, ny: ny * sign };
+  return { x: geo.cx + geo.reach * s, y: geo.cy + geo.height * s * c };
 }
+
+// Blend circle -> infinity by morph in [0, 1].
+function loopPoint(geo: LoopGeometry, t: number, morph: number) {
+  const a = circlePoint(geo, t);
+  const b = infinityPoint(geo, t);
+  return { x: a.x + (b.x - a.x) * morph, y: a.y + (b.y - a.y) * morph };
+}
+
 
 function DockerMark() {
   return (
@@ -77,8 +81,10 @@ function LockMark() {
   );
 }
 
-// One deformable loop: samples the lemniscate, springs each sample outward as the
-// particle passes, and rebuilds a smooth closed path each frame.
+// The whole curve morphs as a system: a ball rides the loop, and each time it
+// sweeps through the right side it drives a spring `morph` that twists the
+// entire shape between circle and infinity, then rebounds. Nothing is a local
+// dent; the impact reshapes the full line.
 function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const shapeRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
@@ -87,32 +93,41 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
 
   useEffect(() => {
     const n = geo.points;
-    const disp = new Float32Array(n); // current outward displacement per sample
-    const vel = new Float32Array(n); // spring velocity per sample
-    const stiffness = 210;
-    const damping = 14;
-
     let raf = 0;
     let last = 0;
-    let phase = 0; // particle parameter in [0, 2pi)
-    const period = 7.2; // seconds per full figure-eight
+
+    // Whole-curve morph as a driven spring. rest target eases between circle and
+    // infinity; the ball's strike kicks velocity so the shape twists and rebounds.
+    let morph = 0;
+    let morphVel = 0;
+    const stiffness = 26;
+    const damping = 3.2;
+
+    let phase = 0; // ball parameter along the curve, [0, 2pi)
+    const period = 4.6; // seconds per lap
+    let struckThisLap = false;
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    function buildPath() {
+    function buildPath(m: number) {
       let d = "";
       for (let i = 0; i <= n; i++) {
-        const idx = i % n;
-        const t = (idx / n) * Math.PI * 2;
-        const p = loopPoint(geo, t);
-        const off = disp[idx];
-        const x = p.x + p.nx * off;
-        const y = p.y + p.ny * off;
-        d += i === 0 ? `M${x.toFixed(2)} ${y.toFixed(2)}` : `L${x.toFixed(2)} ${y.toFixed(2)}`;
+        const t = ((i % n) / n) * Math.PI * 2;
+        const p = loopPoint(geo, t, m);
+        d += i === 0 ? `M${p.x.toFixed(2)} ${p.y.toFixed(2)}` : `L${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
       }
       return `${d}Z`;
+    }
+
+    function render(m: number, ballT: number) {
+      const path = buildPath(m);
+      shapeRef.current?.setAttribute("d", path);
+      highlightRef.current?.setAttribute("d", path);
+      shadowRef.current?.setAttribute("d", path);
+      const b = loopPoint(geo, ballT, m);
+      particleRef.current?.setAttribute("transform", `translate(${b.x.toFixed(2)} ${b.y.toFixed(2)})`);
     }
 
     function frame(now: number) {
@@ -121,47 +136,37 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
       last = now;
       if (dt > 0.05) dt = 0.05;
 
-      phase = (phase + (dt / period) * Math.PI * 2) % (Math.PI * 2);
-      const head = loopPoint(geo, phase);
+      // Ball speeds up as it is flung outward (near the lobes) and eases at the waist.
+      const prevPhase = phase;
+      const speed = 1 + 0.85 * Math.abs(Math.sin(phase));
+      phase = (phase + (dt / period) * Math.PI * 2 * speed) % (Math.PI * 2);
 
-      // Strike: push samples near the particle outward, weighted by a narrow kernel.
-      const strikeReach = Math.round(n * 0.08);
-      const headIdx = Math.round((phase / (Math.PI * 2)) * n) % n;
-      for (let k = -strikeReach; k <= strikeReach; k++) {
-        const idx = (headIdx + k + n) % n;
-        const falloff = Math.exp(-(k * k) / (strikeReach * 0.62) ** 2);
-        vel[idx] += geo.amp * falloff * dt * 46;
+      // Strike once per lap as the ball crosses the right extreme (t = pi/2).
+      const target = Math.PI / 2;
+      if (prevPhase < target && phase >= target && !struckThisLap) {
+        morphVel += 9.5; // impact energy twisting the curve toward infinity
+        struckThisLap = true;
+      }
+      if (phase < target) struckThisLap = false;
+
+      // Whole-curve spring: pulled toward the infinity form, rebounding past it.
+      const restTarget = 0.72;
+      const accel = -stiffness * (morph - restTarget) - damping * morphVel;
+      morphVel += accel * dt;
+      morph += morphVel * dt;
+      if (morph < 0) {
+        morph = 0;
+        morphVel *= -0.4;
+      } else if (morph > 1.25) {
+        morph = 1.25;
+        morphVel *= -0.4;
       }
 
-      // Spring relaxation back to the rest shape (the rebound).
-      for (let i = 0; i < n; i++) {
-        const accel = -stiffness * disp[i] - damping * vel[i];
-        vel[i] += accel * dt;
-        disp[i] += vel[i] * dt;
-        const cap = geo.amp * 1.35;
-        if (disp[i] > cap) disp[i] = cap;
-        else if (disp[i] < -cap) disp[i] = -cap;
-      }
-
-      const path = buildPath();
-      shapeRef.current?.setAttribute("d", path);
-      highlightRef.current?.setAttribute("d", path);
-      shadowRef.current?.setAttribute("d", path);
-      if (particleRef.current) {
-        particleRef.current.setAttribute("transform", `translate(${head.x.toFixed(2)} ${head.y.toFixed(2)})`);
-      }
-
+      render(morph, phase);
       raf = window.requestAnimationFrame(frame);
     }
 
-    // Always render the rest shape once so SSR/static markup has something.
-    const rest = buildPath();
-    shapeRef.current?.setAttribute("d", rest);
-    highlightRef.current?.setAttribute("d", rest);
-    shadowRef.current?.setAttribute("d", rest);
-    const restHead = loopPoint(geo, 0);
-    particleRef.current?.setAttribute("transform", `translate(${restHead.x} ${restHead.y})`);
-
+    render(reduce ? 1 : 0, reduce ? Math.PI / 2 : 0);
     if (!reduce && active) {
       raf = window.requestAnimationFrame(frame);
     }
@@ -173,22 +178,23 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
 
 function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
   const { shapeRef, highlightRef, shadowRef, particleRef } = useLoopSimulation(geo, true);
+  const edge = geo.cx + geo.reach;
 
   return (
     <svg className={className} viewBox={viewBox} aria-hidden="true">
       <path
         className="loop-connector loop-connector-left"
-        d={`M${geo.cx - geo.span - geo.lobe - 62} ${geo.cy} L${geo.cx - geo.span - geo.lobe} ${geo.cy}`}
+        d={`M${geo.cx - geo.reach - 62} ${geo.cy} L${geo.cx - geo.reach} ${geo.cy}`}
       />
       <path
         className="loop-connector loop-connector-right"
-        d={`M${geo.cx + geo.span + geo.lobe + 62} ${geo.cy} L${geo.cx + geo.span + geo.lobe} ${geo.cy}`}
+        d={`M${edge + 62} ${geo.cy} L${edge} ${geo.cy}`}
       />
       <path ref={shadowRef} className="loop-core-shadow" />
       <path ref={shapeRef} className="loop-core-shape" />
       <path ref={highlightRef} className="loop-core-highlight" />
       <g ref={particleRef} className="loop-particle">
-        <circle className="loop-particle-glow" r={geo.amp * 0.72} />
+        <circle className="loop-particle-glow" r={geo === desktopGeo ? 17 : 13} />
         <circle className="loop-particle-core" r={geo === desktopGeo ? 6.4 : 5.8} />
       </g>
     </svg>
