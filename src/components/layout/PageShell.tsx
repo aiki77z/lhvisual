@@ -15,6 +15,9 @@ export function PageShell({ children }: PageShellProps) {
       const root = document.documentElement;
       setAtTop(window.scrollY <= 2);
       setAtBottom(window.scrollY + window.innerHeight >= root.scrollHeight - 2);
+      // Progressive top blur: ramps 0 -> 1 across the first ~70% of a viewport.
+      const progress = Math.min(1, window.scrollY / (window.innerHeight * 0.7));
+      root.style.setProperty("--scroll-blur", progress.toFixed(3));
     }
 
     updateScrollEdges();
@@ -33,6 +36,7 @@ export function PageShell({ children }: PageShellProps) {
 
   return (
     <div className={`site-frame ${edgeClasses}`}>
+      <div className="scroll-blur-veil" aria-hidden="true" />
       <SiteHeader />
       <main className="site-main">{children}</main>
       <SiteFooter />

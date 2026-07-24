@@ -29,10 +29,6 @@ export function HomePage() {
             <a className="hero-run-link" href={toAppPath("/run")}>Run your loop</a>
           </div>
         </div>
-        <div className="hero-scroll-cue" aria-hidden="true">
-          <span>Explore</span>
-          <i />
-        </div>
       </section>
 
       <div className="site-container home-content">
