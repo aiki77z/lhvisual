@@ -34,39 +34,30 @@ type LoopGeometry = {
   radius: number; // circle radius at rest
   reach: number; // half-width of each infinity lobe
   height: number; // vertical extent of each lobe
-  points: number; // samples per closed path
   fromDock: { x: number; y: number }; // right Docker (ball starts here)
   toDock: { x: number; y: number }; // left Docker (ball ends here)
 };
 
 const desktopGeo: LoopGeometry = {
-  cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 220,
+  cx: 500, cy: 230, radius: 96, reach: 182, height: 92,
   fromDock: { x: 812, y: 230 },
   toDock: { x: 188, y: 230 },
 };
 const mobileGeo: LoopGeometry = {
-  cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 220,
+  cx: 180, cy: 350, radius: 62, reach: 118, height: 60,
   fromDock: { x: 180, y: 560 },
   toDock: { x: 180, y: 140 },
 };
 
-const TAU = Math.PI * 2;
-
-function circlePoint(geo: LoopGeometry, t: number) {
-  return { x: geo.cx + geo.radius * Math.cos(t), y: geo.cy + geo.radius * Math.sin(t) };
-}
-
-function infinityPoint(geo: LoopGeometry, t: number) {
-  const c = Math.cos(t);
-  const s = Math.sin(t);
-  return { x: geo.cx + geo.reach * c, y: geo.cy + geo.height * s * c };
-}
-
-function loopPoint(geo: LoopGeometry, t: number, morph: number) {
-  const a = circlePoint(geo, t);
-  const b = infinityPoint(geo, t);
-  return { x: a.x + (b.x - a.x) * morph, y: a.y + (b.y - a.y) * morph };
-}
+type Point = { x: number; y: number };
+type Direction = 1 | -1;
+type RopeState = {
+  ball: Point;
+  side: Direction;
+  tension: number;
+  impact: number;
+  recoil: number;
+};
 
 function clamp01(value: number) {
   return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -86,18 +77,18 @@ function lerp(a: number, b: number, u: number) {
   return a + (b - a) * u;
 }
 
-function lerpPoint(a: { x: number; y: number }, b: { x: number; y: number }, u: number) {
+function lerpPoint(a: Point, b: Point, u: number) {
   return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) };
 }
 
-function wrapAngle(value: number) {
-  const wrapped = value % TAU;
-  return wrapped < 0 ? wrapped + TAU : wrapped;
-}
-
-function angularDistance(a: number, b: number) {
-  const diff = Math.abs(wrapAngle(a) - wrapAngle(b));
-  return Math.min(diff, TAU - diff);
+function cubicPoint(p0: Point, p1: Point, p2: Point, p3: Point, u: number) {
+  const a = 1 - u;
+  const aa = a * a;
+  const uu = u * u;
+  return {
+    x: aa * a * p0.x + 3 * aa * u * p1.x + 3 * a * uu * p2.x + uu * u * p3.x,
+    y: aa * a * p0.y + 3 * aa * u * p1.y + 3 * a * uu * p2.y + uu * u * p3.y,
+  };
 }
 
 
@@ -118,8 +109,8 @@ function LockMark() {
   );
 }
 
-// The particle drives the rope: contact deforms locally first, tension spreads
-// across the loop, then the line releases with a damped recoil.
+// The particle drives one continuous cubic rope: impact stretches one side,
+// tension pulls it into an infinity loop, then the same curve recoils back.
 function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const shapeRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
@@ -129,137 +120,174 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   useEffect(() => {
     let raf = 0;
     let start = 0;
-    const cycle = 11.2;
-    const samples = geo.points;
-    const approachEnd = 0.18;
-    const pullEnd = 0.58;
-    const tautEnd = 0.68;
-    const releaseEnd = 0.92;
+    const cycle = 10.8;
+    const approachEnd = 0.2;
+    const pullEnd = 0.62;
+    const tautEnd = 0.72;
+    const releaseEnd = 0.95;
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    function contactPair(forward: boolean) {
-      const startT = forward ? 0 : Math.PI;
-      const endT = startT + Math.PI;
+    function sidePoint(side: Direction, tension: number) {
+      const rest = { x: geo.cx + side * geo.radius, y: geo.cy };
+      const taut = { x: geo.cx + side * geo.reach, y: geo.cy };
+      return lerpPoint(rest, taut, tension);
+    }
+
+    function infinityControls() {
+      const r = geo.reach;
+      const h = geo.height;
+      const c = geo.cx;
+      const y = geo.cy;
       return {
-        startDock: forward ? geo.fromDock : geo.toDock,
-        endDock: forward ? geo.toDock : geo.fromDock,
-        startT,
-        endT,
-        startPoint: circlePoint(geo, startT),
-        endPoint: circlePoint(geo, endT),
+        right: { x: c + r, y },
+        left: { x: c - r, y },
+        center: { x: c, y },
+        c0a: { x: c + r, y: y - h },
+        c0b: { x: c + r * 0.44, y: y - h },
+        c1a: { x: c - r * 0.44, y: y + h },
+        c1b: { x: c - r, y: y + h },
+        c2a: { x: c - r, y: y - h },
+        c2b: { x: c - r * 0.44, y: y - h },
+        c3a: { x: c + r * 0.44, y: y + h },
+        c3b: { x: c + r, y: y + h },
       };
     }
 
-    function stateAt(progress: number, forward: boolean) {
-      const pair = contactPair(forward);
+    function shapeFor(state: RopeState) {
+      const k = 0.5522847498;
+      const t = clamp01(state.tension);
+      const r = geo.radius;
+      const h = geo.height;
+      const c = geo.cx;
+      const y = geo.cy;
+      const recoil = state.recoil;
+      const rightBias = state.side === 1 ? state.impact : 0;
+      const leftBias = state.side === -1 ? state.impact : 0;
+
+      const rightRest = { x: c + r, y };
+      const leftRest = { x: c - r, y };
+      const topRest = { x: c, y: y - r };
+      const bottomRest = { x: c, y: y + r };
+      const inf = infinityControls();
+
+      const right = lerpPoint(rightRest, inf.right, t);
+      const top = lerpPoint(topRest, inf.center, t);
+      const left = lerpPoint(leftRest, inf.left, t);
+      const bottom = lerpPoint(bottomRest, inf.center, t);
+
+      right.x += rightBias * 34;
+      left.x -= leftBias * 34;
+      top.y -= recoil * h * 0.1;
+      bottom.y += recoil * h * 0.1;
+
+      const c0a = lerpPoint({ x: rightRest.x, y: y - k * r }, inf.c0a, t);
+      const c0b = lerpPoint({ x: c + k * r, y: topRest.y }, inf.c0b, t);
+      const c1a = lerpPoint({ x: c - k * r, y: topRest.y }, inf.c1a, t);
+      const c1b = lerpPoint({ x: leftRest.x, y: y - k * r }, inf.c1b, t);
+      const c2a = lerpPoint({ x: leftRest.x, y: y + k * r }, inf.c2a, t);
+      const c2b = lerpPoint({ x: c - k * r, y: bottomRest.y }, inf.c2b, t);
+      const c3a = lerpPoint({ x: c + k * r, y: bottomRest.y }, inf.c3a, t);
+      const c3b = lerpPoint({ x: rightRest.x, y: y + k * r }, inf.c3b, t);
+
+      c0a.x += rightBias * 25;
+      c3b.x += rightBias * 25;
+      c1b.x -= leftBias * 25;
+      c2a.x -= leftBias * 25;
+
+      return { right, top, left, bottom, c0a, c0b, c1a, c1b, c2a, c2b, c3a, c3b };
+    }
+
+    function pointOnRope(shape: ReturnType<typeof shapeFor>, side: Direction, u: number) {
+      const t = clamp01(u);
+
+      if (side === 1) {
+        if (t < 0.5) {
+          return cubicPoint(shape.right, shape.c0a, shape.c0b, shape.top, t * 2);
+        }
+        return cubicPoint(shape.top, shape.c1a, shape.c1b, shape.left, (t - 0.5) * 2);
+      }
+
+      if (t < 0.5) {
+        return cubicPoint(shape.left, shape.c2a, shape.c2b, shape.bottom, t * 2);
+      }
+      return cubicPoint(shape.bottom, shape.c3a, shape.c3b, shape.right, (t - 0.5) * 2);
+    }
+
+    function stateAt(progress: number, forward: boolean): RopeState {
+      const side: Direction = forward ? 1 : -1;
+      const startDock = forward ? geo.fromDock : geo.toDock;
+      const endDock = forward ? geo.toDock : geo.fromDock;
+      const startSide = sidePoint(side, 0);
+      const tautState = { ball: startSide, side, tension: 1, impact: 0, recoil: 0 };
+      const endSide = pointOnRope(shapeFor(tautState), side, 1);
 
       if (progress < approachEnd) {
         const u = easeInOut(progress / approachEnd);
         return {
-          ball: lerpPoint(pair.startDock, pair.startPoint, u),
-          frontT: pair.startT,
-          pull: 0,
-          global: 0,
-          contact: 0,
+          ball: lerpPoint(startDock, startSide, u),
+          side,
+          tension: 0,
+          impact: smoothstep((u - 0.72) / 0.28),
           recoil: 0,
         };
       }
 
       if (progress < pullEnd) {
         const u = easeInOut((progress - approachEnd) / (pullEnd - approachEnd));
-        const frontT = pair.startT + u * Math.PI;
-        return {
-          ball: infinityPoint(geo, frontT),
-          frontT,
-          pull: u,
-          global: smoothstep((u - 0.24) / 0.76),
-          contact: 1,
+        const state = {
+          ball: startSide,
+          side,
+          tension: smoothstep((u - 0.08) / 0.92),
+          impact: (1 - u) * 0.7,
           recoil: 0,
         };
+        return { ...state, ball: pointOnRope(shapeFor(state), side, u) };
       }
 
       if (progress < tautEnd) {
-        return {
-          ball: infinityPoint(geo, pair.endT),
-          frontT: pair.endT,
-          pull: 1,
-          global: 1,
-          contact: 0.7,
-          recoil: 0,
-        };
+        return { ...tautState, ball: endSide };
       }
 
       if (progress < releaseEnd) {
         const u = (progress - tautEnd) / (releaseEnd - tautEnd);
         const eased = easeInOut(u);
-        const spring = Math.sin(u * Math.PI * 4.5) * Math.exp(-3.4 * u);
+        const spring = Math.sin(u * Math.PI * 4) * Math.exp(-3.8 * u);
         return {
-          ball: lerpPoint(pair.endPoint, pair.endDock, eased),
-          frontT: pair.endT,
-          pull: 1,
-          global: clamp01((1 - eased) ** 1.65 + spring * 0.12),
-          contact: 0,
+          ball: lerpPoint(endSide, endDock, eased),
+          side,
+          tension: clamp01((1 - eased) ** 1.45 + spring * 0.08),
+          impact: 0,
           recoil: spring,
         };
       }
 
       return {
-        ball: pair.endDock,
-        frontT: pair.endT,
-        pull: 0,
-        global: 0,
-        contact: 0,
+        ball: endDock,
+        side,
+        tension: 0,
+        impact: 0,
         recoil: 0,
       };
     }
 
-    function buildPath(state: ReturnType<typeof stateAt>, forward: boolean) {
-      const pair = contactPair(forward);
-      const front = clamp01(state.pull) * Math.PI;
-      const points: Array<{ x: number; y: number }> = [];
+    function buildPath(state: RopeState) {
+      const { right, top, left, bottom, c0a, c0b, c1a, c1b, c2a, c2b, c3a, c3b } = shapeFor(state);
 
-      for (let i = 0; i < samples; i++) {
-        const t = (i / samples) * TAU;
-        const relative = wrapAngle(t - pair.startT);
-        const wake = smoothstep((front - relative + 0.65) / 1.28);
-        const dist = angularDistance(t, state.frontT);
-        const local = Math.exp(-(dist * dist) / 0.78) * state.contact;
-        const morph = clamp01(state.global + wake * 0.26 + local * 0.36);
-        const pt = loopPoint(geo, t, morph);
-
-        if (local > 0.001) {
-          pt.x = lerp(pt.x, state.ball.x, local * 0.09);
-          pt.y = lerp(pt.y, state.ball.y, local * 0.09);
-        }
-
-        if (Math.abs(state.recoil) > 0.001) {
-          const ripple = Math.sin(t * 3 + (forward ? 0 : Math.PI)) * state.recoil;
-          pt.x += Math.cos(t) * geo.radius * ripple * 0.07;
-          pt.y += Math.sin(t) * geo.height * ripple * 0.18;
-        }
-
-        points.push(pt);
-      }
-
-      let d = `M${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
-      for (let i = 0; i < points.length; i++) {
-        const p0 = points[(i - 1 + points.length) % points.length];
-        const p1 = points[i];
-        const p2 = points[(i + 1) % points.length];
-        const p3 = points[(i + 2) % points.length];
-        const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
-        const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
-        d += `C${c1.x.toFixed(2)} ${c1.y.toFixed(2)} ${c2.x.toFixed(2)} ${c2.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
-      }
-
-      return `${d}Z`;
+      return [
+        `M${right.x.toFixed(2)} ${right.y.toFixed(2)}`,
+        `C${c0a.x.toFixed(2)} ${c0a.y.toFixed(2)} ${c0b.x.toFixed(2)} ${c0b.y.toFixed(2)} ${top.x.toFixed(2)} ${top.y.toFixed(2)}`,
+        `C${c1a.x.toFixed(2)} ${c1a.y.toFixed(2)} ${c1b.x.toFixed(2)} ${c1b.y.toFixed(2)} ${left.x.toFixed(2)} ${left.y.toFixed(2)}`,
+        `C${c2a.x.toFixed(2)} ${c2a.y.toFixed(2)} ${c2b.x.toFixed(2)} ${c2b.y.toFixed(2)} ${bottom.x.toFixed(2)} ${bottom.y.toFixed(2)}`,
+        `C${c3a.x.toFixed(2)} ${c3a.y.toFixed(2)} ${c3b.x.toFixed(2)} ${c3b.y.toFixed(2)} ${right.x.toFixed(2)} ${right.y.toFixed(2)}`,
+        "Z",
+      ].join("");
     }
 
-    function render(state: ReturnType<typeof stateAt>, forward: boolean) {
-      const path = buildPath(state, forward);
+    function render(state: RopeState) {
+      const path = buildPath(state);
       shapeRef.current?.setAttribute("d", path);
       highlightRef.current?.setAttribute("d", path);
       shadowRef.current?.setAttribute("d", path);
@@ -272,14 +300,14 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
       const cycleIndex = Math.floor(elapsed / cycle);
       const p = (elapsed / cycle) % 1;
       const forward = cycleIndex % 2 === 0;
-      render(stateAt(p, forward), forward);
+      render(stateAt(p, forward));
       raf = window.requestAnimationFrame(frame);
     }
 
     if (reduce) {
-      render({ ball: geo.fromDock, frontT: 0, pull: 0, global: 0, contact: 0, recoil: 0 }, true);
+      render({ ball: geo.fromDock, side: 1, tension: 0, impact: 0, recoil: 0 });
     } else {
-      render(stateAt(0, true), true);
+      render(stateAt(0, true));
       if (active) raf = window.requestAnimationFrame(frame);
     }
     return () => window.cancelAnimationFrame(raf);
