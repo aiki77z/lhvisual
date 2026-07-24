@@ -20,15 +20,29 @@ def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _plain_text(value: str) -> str:
+    lines: list[str] = []
+    for raw_line in value.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = re.sub(r"^\s{0,3}#{1,6}\s+", "", raw_line)
+        line = re.sub(r"^\s{0,3}>\s?", "", line)
+        line = re.sub(r"^\s*[-*+]\s+", "", line)
+        line = re.sub(r"\*\*([^*]+)\*\*", r"\1", line)
+        line = re.sub(r"__([^_]+)__", r"\1", line)
+        line = re.sub(r"`([^`]+)`", r"\1", line)
+        line = _normalize_text(line)
+        lines.append(line)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
 def _pick_instruction_preview(instruction: str) -> str:
     blocks = [block.strip() for block in re.split(r"\n\s*\n", instruction.strip()) if block.strip()]
     for block in blocks:
-        normalized = _normalize_text(block)
+        normalized = _normalize_text(_plain_text(block))
         if normalized.lower().startswith("you are an autonomous engineer."):
             continue
         if normalized:
             return normalized
-    return _normalize_text(instruction)
+    return _normalize_text(_plain_text(instruction))
 
 
 def _safe_author_name(task: dict) -> str:
@@ -160,9 +174,9 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
         module_nodes.append(
             {
                 "id": node_id,
-                "label": _normalize_text(str(node.get("label") or node_id)),
+                "label": _normalize_text(_plain_text(str(node.get("label") or node_id))),
                 "path": str(node.get("path") or "."),
-                "description": _normalize_text(str(node.get("description") or "")),
+                "description": _normalize_text(_plain_text(str(node.get("description") or ""))),
                 "filesCount": int(node.get("files_count") or 0),
                 "loc": int(node.get("loc") or 0),
                 "implOrder": int(node.get("impl_order") or 0),
@@ -176,16 +190,16 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
         {
             "from": str(edge["from"]),
             "to": str(edge["to"]),
-            "label": _normalize_text(str(edge.get("label") or "")),
+            "label": _normalize_text(_plain_text(str(edge.get("label") or ""))),
         }
         for edge in module_edges_raw
     ]
 
-    title = _normalize_text(str(module_dag.get("project") or task_yaml.get("task_name") or task_dir.name))
-    summary = _normalize_text(str(module_dag.get("description") or "")) or _pick_instruction_preview(
+    title = _normalize_text(_plain_text(str(module_dag.get("project") or task_yaml.get("task_name") or task_dir.name)))
+    summary = _normalize_text(_plain_text(str(module_dag.get("description") or ""))) or _pick_instruction_preview(
         str(task_yaml.get("instruction") or "")
     )
-    instruction = str(task_yaml.get("instruction") or "").strip()
+    instruction = _plain_text(str(task_yaml.get("instruction") or ""))
     tags = [str(tag) for tag in task_yaml.get("tags", []) if str(tag).strip()]
     module_loc_total = sum(node["loc"] for node in module_nodes)
     module_files_total = sum(node["filesCount"] for node in module_nodes)

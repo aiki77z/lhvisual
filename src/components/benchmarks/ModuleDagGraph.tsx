@@ -39,16 +39,18 @@ export function ModuleDagGraph({ dag, selectedNodeId, onSelect }: ModuleDagGraph
     nodes: dag.nodes.filter((node) => node.layer === layer).sort(sortNodes),
   }));
 
-  const nodeWidth = 220;
-  const nodeHeight = 86;
-  const rowGap = 14;
-  const columnGap = 54;
-  const leftPad = 22;
+  const nodeWidth = layerCount > 10 ? 228 : 252;
+  const nodeHeight = 108;
+  const rowGap = 16;
+  const columnGap = layerCount > 10 ? 48 : 64;
+  const leftPad = 28;
   const topPad = 64;
-  const bottomPad = 22;
+  const bottomPad = 28;
   const maxRows = Math.max(...groupedLayers.map((group) => group.nodes.length), 1);
   const width = leftPad * 2 + layerCount * nodeWidth + Math.max(layerCount - 1, 0) * columnGap;
   const height = topPad + maxRows * (nodeHeight + rowGap) - rowGap + bottomPad;
+  const displayWidth = Math.max(width, 980);
+  const displayHeight = Math.max(height, 360);
 
   const positions = Object.fromEntries(
     groupedLayers.flatMap((group, layerIndex) =>
@@ -67,6 +69,7 @@ export function ModuleDagGraph({ dag, selectedNodeId, onSelect }: ModuleDagGraph
       <div className="module-dag-scroller">
         <svg
           className="module-dag-svg"
+          style={{ width: `${displayWidth}px`, height: `${displayHeight}px` }}
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={`${dag.project} module dependency DAG`}
@@ -126,6 +129,7 @@ export function ModuleDagGraph({ dag, selectedNodeId, onSelect }: ModuleDagGraph
                   <button
                     className={`module-dag-node${isSelected ? " module-dag-node-selected" : ""}`}
                     type="button"
+                    title={`${node.label}\n${node.path}\n${node.filesCount.toLocaleString()} files · ${node.loc.toLocaleString()} LOC`}
                     onClick={() => onSelect(node.id)}
                   >
                     <span className="module-dag-node-title">{node.label}</span>

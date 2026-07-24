@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { getBenchmarksIndex } from "../../lib/benchmarksApi";
+import { toPlainDisplayText } from "../../lib/plainText";
 import { toAppPath } from "../../lib/site";
 import type { BenchmarkTaskSummary, BenchmarksIndexPayload } from "../../types/benchmarks";
 
@@ -34,9 +35,43 @@ function formatDifficulty(value: string) {
   return value.replace(/_/g, " ");
 }
 
+function BenchmarkStats({ payload, filteredCount }: { payload: BenchmarksIndexPayload; filteredCount: number }) {
+  const stats = [
+    { label: "visible", value: filteredCount.toLocaleString() },
+    { label: "tasks", value: payload.benchmark.taskCount.toLocaleString() },
+    { label: "units", value: payload.benchmark.totalUnits.toLocaleString() },
+    { label: "tested", value: payload.benchmark.totalTestedUnits.toLocaleString() },
+  ];
+
+  return (
+    <section className="registry-terminal-summary" aria-label="Benchmark summary">
+      <header>
+        <span>loopsbench/tasks</span>
+        <code>static snapshot</code>
+      </header>
+      <div className="registry-terminal-lines">
+        <p>
+          <span>$</span> lhb tasks list --dataset LoopsBench
+        </p>
+        <p>
+          <span>ok</span> {payload.benchmark.description}
+        </p>
+      </div>
+      <div className="registry-terminal-stats">
+        {stats.map((item) => (
+          <div key={item.label}>
+            <strong>{item.value}</strong>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function TaskCard({ task }: { task: BenchmarkTaskSummary }) {
   const taskHref = toAppPath(`/benchmarks/${encodeURIComponent(task.id)}`);
-  const preview = task.instructionPreview || task.summary;
+  const preview = toPlainDisplayText(task.instructionPreview || task.summary);
   const tags = task.tags.slice(0, 4).join(", ");
 
   return (
@@ -162,6 +197,8 @@ export function BenchmarksPage() {
             Clear filters
           </button>
         </header>
+
+        {payload ? <BenchmarkStats payload={payload} filteredCount={filteredCount} /> : null}
 
         <section className="registry-filterbar" aria-label="Benchmark filters">
           <label className="registry-search-field">

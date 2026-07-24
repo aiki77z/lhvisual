@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DagLayerBars } from "./DagLayerBars";
 import { ModuleDagGraph } from "./ModuleDagGraph";
 import { getBenchmarkTask } from "../../lib/benchmarksApi";
+import { toPlainDisplayText } from "../../lib/plainText";
 import { toAppPath } from "../../lib/site";
 import type { BenchmarkTaskDetail, ModuleDagNode } from "../../types/benchmarks";
 
@@ -61,7 +62,7 @@ function formatSeconds(value: number) {
 }
 
 function splitInstructionBlocks(instruction: string) {
-  return instruction
+  return toPlainDisplayText(instruction)
     .split(/\n\s*\n/)
     .map((block) => block.trim())
     .filter(Boolean);
@@ -91,7 +92,7 @@ function buildUsageOptions(task: BenchmarkTaskDetail): UsageOption[] {
 }
 
 function fallbackDescription(value: string) {
-  return value.trim() || "No module description was provided for this node.";
+  return toPlainDisplayText(value) || "No module description was provided for this node.";
 }
 
 export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
@@ -151,6 +152,7 @@ export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
   const usageOptions = buildUsageOptions(task);
   const activeUsage = usageOptions.find((option) => option.key === activeUsageKey) ?? usageOptions[0];
   const instructionBlocks = splitInstructionBlocks(task.instruction);
+  const taskSummary = toPlainDisplayText(task.summary);
   const selectedNode =
     task.moduleDag.nodes.find((node) => node.id === selectedNodeId) ?? pickDefaultNode(task) ?? null;
   const upstreamEdges = task.moduleDag.edges.filter((edge) => edge.to === selectedNode?.id);
@@ -194,7 +196,7 @@ export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
         <header className="registry-detail-hero">
           <p className="registry-detail-task-id">{task.taskName}</p>
           <h1 className="registry-detail-title">{task.title}</h1>
-          <p className="registry-detail-summary">{task.summary}</p>
+          <p className="registry-detail-summary">{taskSummary}</p>
           <p className="registry-detail-benchmark-line">LoopsBench / dependency-native coding task</p>
 
           <div className="registry-detail-meta">
