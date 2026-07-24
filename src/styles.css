@@ -2813,6 +2813,7 @@ tbody tr:hover {
 
 .loop-connector,
 .loop-core-shadow,
+.loop-core-liquid,
 .loop-core-shape,
 .loop-core-flow,
 .loop-core-highlight {
@@ -2834,6 +2835,13 @@ tbody tr:hover {
   stroke-width: 11;
   opacity: 0.28;
   filter: blur(6px);
+}
+
+.loop-core-liquid {
+  stroke: rgba(112, 214, 226, 0.42);
+  stroke-width: 6.4;
+  opacity: 0.48;
+  mix-blend-mode: screen;
 }
 
 .loop-core-shape {
@@ -4211,6 +4219,7 @@ tbody tr:hover {
   .performance-fill,
   .loop-connector,
   .loop-core-shadow,
+  .loop-core-liquid,
   .loop-core-shape,
   .loop-core-flow,
   .loop-core-highlight,

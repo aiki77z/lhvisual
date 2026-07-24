@@ -118,6 +118,7 @@ function LockMark() {
 function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
   const verticalDockLayout = Math.abs(geo.fromDock.x - geo.toDock.x) < 1;
   const iconTransform = loopIconTransform(geo);
+  const liquidFilterId = verticalDockLayout ? "loop-liquid-mobile" : "loop-liquid-desktop";
   const leftConnector = verticalDockLayout
     ? `M${geo.toDock.x} ${geo.toDock.y + 30} C${geo.toDock.x - 82} ${geo.toDock.y + 86} ${geo.cx - geo.reach - 42} ${geo.cy - 52} ${geo.cx - geo.reach} ${geo.cy}`
     : `M${geo.toDock.x + 72} ${geo.cy} C${geo.toDock.x + 128} ${geo.cy - 16} ${geo.cx - geo.reach - 70} ${geo.cy + 16} ${geo.cx - geo.reach} ${geo.cy}`;
@@ -127,10 +128,23 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
 
   return (
     <svg className={className} viewBox={viewBox} aria-hidden="true">
+      <defs>
+        <filter id={liquidFilterId} x="-20%" y="-35%" width="140%" height="170%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.018 0.052" numOctaves="1" seed="7" result="loopNoise">
+            <animate attributeName="baseFrequency" dur="7.2s" repeatCount="indefinite" values="0.018 0.052;0.026 0.038;0.014 0.06;0.018 0.052" />
+          </feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="loopNoise" scale="0.42" xChannelSelector="R" yChannelSelector="G">
+            <animate attributeName="scale" dur="7.2s" repeatCount="indefinite" values="0.15;0.48;0.26;0.55;0.15" keyTimes="0;0.22;0.5;0.72;1" />
+          </feDisplacementMap>
+        </filter>
+      </defs>
       <path className="loop-connector loop-connector-left" d={leftConnector} />
       <path className="loop-connector loop-connector-right" d={rightConnector} />
       <g transform={iconTransform}>
         <path className="loop-core-shadow" d={INFINITY_MARK_PATH}>
+          <LoopPathAnimation />
+        </path>
+        <path className="loop-core-liquid" d={INFINITY_MARK_PATH} filter={`url(#${liquidFilterId})`}>
           <LoopPathAnimation />
         </path>
         <path className="loop-core-shape" d={INFINITY_MARK_PATH}>
