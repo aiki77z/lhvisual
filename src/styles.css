@@ -2644,7 +2644,6 @@ tbody tr:hover {
   stroke-width: 1.4;
   stroke-dasharray: 2 12;
   opacity: 0.7;
-  animation: loop-connector-drift 4.8s linear infinite;
 }
 
 .loop-core-shadow {
@@ -2690,7 +2689,6 @@ tbody tr:hover {
 .loop-particle-glow {
   fill: #83dfe4;
   opacity: 0.28;
-  animation: loop-particle-bloom 1.7s ease-in-out infinite;
 }
 
 .loop-particle-core {
@@ -2918,15 +2916,6 @@ tbody tr:hover {
 
 .loop-stage-description span {
   line-height: 1.5;
-}
-
-@keyframes loop-connector-drift {
-  to { stroke-dashoffset: -42; }
-}
-
-@keyframes loop-particle-bloom {
-  0%, 100% { opacity: 0.18; }
-  50% { opacity: 0.38; }
 }
 
 /* ---------- About: paper detail lives here ---------- */

@@ -28,9 +28,6 @@ const backgroundTerms = [
   { text: "observation_history.jsonl", className: "term-h" },
 ];
 
-// The loop is one closed curve that morphs between a circle (morph=0) and a
-// full lemniscate / infinity sign (morph=1). Same parameter t indexes matching
-// points on both shapes so they interpolate smoothly.
 type LoopGeometry = {
   cx: number;
   cy: number;
@@ -43,34 +40,64 @@ type LoopGeometry = {
 };
 
 const desktopGeo: LoopGeometry = {
-  cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 160,
+  cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 220,
   fromDock: { x: 812, y: 230 },
   toDock: { x: 188, y: 230 },
 };
 const mobileGeo: LoopGeometry = {
-  cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 160,
+  cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 220,
   fromDock: { x: 180, y: 560 },
   toDock: { x: 180, y: 140 },
 };
 
-// Point on the rest circle for parameter t in [0, 2pi).
+const TAU = Math.PI * 2;
+
 function circlePoint(geo: LoopGeometry, t: number) {
   return { x: geo.cx + geo.radius * Math.cos(t), y: geo.cy + geo.radius * Math.sin(t) };
 }
 
-// Point on the lemniscate (figure eight) for the same t. Gerono form: the curve
-// sweeps out to +reach, back through the waist, out to -reach, and home.
 function infinityPoint(geo: LoopGeometry, t: number) {
-  const s = Math.sin(t);
   const c = Math.cos(t);
-  return { x: geo.cx + geo.reach * s, y: geo.cy + geo.height * s * c };
+  const s = Math.sin(t);
+  return { x: geo.cx + geo.reach * c, y: geo.cy + geo.height * s * c };
 }
 
-// Blend circle -> infinity by morph in [0, 1].
 function loopPoint(geo: LoopGeometry, t: number, morph: number) {
   const a = circlePoint(geo, t);
   const b = infinityPoint(geo, t);
   return { x: a.x + (b.x - a.x) * morph, y: a.y + (b.y - a.y) * morph };
+}
+
+function clamp01(value: number) {
+  return value < 0 ? 0 : value > 1 ? 1 : value;
+}
+
+function smoothstep(value: number) {
+  const u = clamp01(value);
+  return u * u * (3 - 2 * u);
+}
+
+function easeInOut(value: number) {
+  const u = clamp01(value);
+  return u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+}
+
+function lerp(a: number, b: number, u: number) {
+  return a + (b - a) * u;
+}
+
+function lerpPoint(a: { x: number; y: number }, b: { x: number; y: number }, u: number) {
+  return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) };
+}
+
+function wrapAngle(value: number) {
+  const wrapped = value % TAU;
+  return wrapped < 0 ? wrapped + TAU : wrapped;
+}
+
+function angularDistance(a: number, b: number) {
+  const diff = Math.abs(wrapAngle(a) - wrapAngle(b));
+  return Math.min(diff, TAU - diff);
 }
 
 
@@ -91,11 +118,8 @@ function LockMark() {
   );
 }
 
-// A ball travels from the right Docker station through the loop to the left
-// Docker (then back). The curve deforms in step with the ball's position: it is
-// a circle at rest, and as the ball pushes through it twists into the infinity
-// sign, peaking as the ball crosses center, easing back as it exits. The line
-// reacts to actual contact, not a detached timer.
+// The particle drives the rope: contact deforms locally first, tension spreads
+// across the loop, then the line releases with a damped recoil.
 function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const shapeRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
@@ -103,79 +127,159 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const particleRef = useRef<SVGGElement | null>(null);
 
   useEffect(() => {
-    const n = geo.points;
     let raf = 0;
     let start = 0;
-    const cycle = 6.5; // seconds per strike cycle
+    const cycle = 11.2;
+    const samples = geo.points;
+    const approachEnd = 0.18;
+    const pullEnd = 0.58;
+    const tautEnd = 0.68;
+    const releaseEnd = 0.92;
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-    const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
-    const clamp01 = (u: number) => (u < 0 ? 0 : u > 1 ? 1 : u);
-    const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
-
-    // The loop spans this far to each side along the ball's travel axis. The ball
-    // is "in contact" with the curve while it is inside this band; the morph is
-    // driven by how deep into the band the ball is, so the line reacts to the
-    // ball's actual position rather than a detached timer.
-    const contactSpan = geo.reach + 20;
-    const axis = geo.fromDock.x !== geo.toDock.x ? "x" : "y";
-    const center = axis === "x" ? geo.cx : geo.cy;
-
-    // Ball travels right Docker -> left Docker, then back. One full round trip
-    // per cycle so both stations take turns firing.
-    function ballAt(p: number) {
-      const a = geo.fromDock;
-      const b = geo.toDock;
-      if (p < 0.5) {
-        const u = easeInOut(p / 0.5); // from -> to
-        return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) };
-      }
-      const u = easeInOut((p - 0.5) / 0.5); // to -> from
-      return { x: lerp(b.x, a.x, u), y: lerp(b.y, a.y, u) };
+    function contactPair(forward: boolean) {
+      const startT = forward ? 0 : Math.PI;
+      const endT = startT + Math.PI;
+      return {
+        startDock: forward ? geo.fromDock : geo.toDock,
+        endDock: forward ? geo.toDock : geo.fromDock,
+        startT,
+        endT,
+        startPoint: circlePoint(geo, startT),
+        endPoint: circlePoint(geo, endT),
+      };
     }
 
-    // Morph tracks the ball: 0 while outside the loop, rising as it pushes in,
-    // full infinity as it passes dead center, easing back as it exits.
-    function morphFor(ball: { x: number; y: number }) {
-      const pos = axis === "x" ? ball.x : ball.y;
-      const depth = clamp01(1 - Math.abs(pos - center) / contactSpan);
-      return easeInOut(depth);
+    function stateAt(progress: number, forward: boolean) {
+      const pair = contactPair(forward);
+
+      if (progress < approachEnd) {
+        const u = easeInOut(progress / approachEnd);
+        return {
+          ball: lerpPoint(pair.startDock, pair.startPoint, u),
+          frontT: pair.startT,
+          pull: 0,
+          global: 0,
+          contact: 0,
+          recoil: 0,
+        };
+      }
+
+      if (progress < pullEnd) {
+        const u = easeInOut((progress - approachEnd) / (pullEnd - approachEnd));
+        const frontT = pair.startT + u * Math.PI;
+        return {
+          ball: infinityPoint(geo, frontT),
+          frontT,
+          pull: u,
+          global: smoothstep((u - 0.24) / 0.76),
+          contact: 1,
+          recoil: 0,
+        };
+      }
+
+      if (progress < tautEnd) {
+        return {
+          ball: infinityPoint(geo, pair.endT),
+          frontT: pair.endT,
+          pull: 1,
+          global: 1,
+          contact: 0.7,
+          recoil: 0,
+        };
+      }
+
+      if (progress < releaseEnd) {
+        const u = (progress - tautEnd) / (releaseEnd - tautEnd);
+        const eased = easeInOut(u);
+        const spring = Math.sin(u * Math.PI * 4.5) * Math.exp(-3.4 * u);
+        return {
+          ball: lerpPoint(pair.endPoint, pair.endDock, eased),
+          frontT: pair.endT,
+          pull: 1,
+          global: clamp01((1 - eased) ** 1.65 + spring * 0.12),
+          contact: 0,
+          recoil: spring,
+        };
+      }
+
+      return {
+        ball: pair.endDock,
+        frontT: pair.endT,
+        pull: 0,
+        global: 0,
+        contact: 0,
+        recoil: 0,
+      };
     }
 
-    function buildPath(m: number) {
-      let d = "";
-      for (let i = 0; i <= n; i++) {
-        const t = ((i % n) / n) * Math.PI * 2;
-        const pt = loopPoint(geo, t, m);
-        d += i === 0 ? `M${pt.x.toFixed(2)} ${pt.y.toFixed(2)}` : `L${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`;
+    function buildPath(state: ReturnType<typeof stateAt>, forward: boolean) {
+      const pair = contactPair(forward);
+      const front = clamp01(state.pull) * Math.PI;
+      const points: Array<{ x: number; y: number }> = [];
+
+      for (let i = 0; i < samples; i++) {
+        const t = (i / samples) * TAU;
+        const relative = wrapAngle(t - pair.startT);
+        const wake = smoothstep((front - relative + 0.65) / 1.28);
+        const dist = angularDistance(t, state.frontT);
+        const local = Math.exp(-(dist * dist) / 0.78) * state.contact;
+        const morph = clamp01(state.global + wake * 0.26 + local * 0.36);
+        const pt = loopPoint(geo, t, morph);
+
+        if (local > 0.001) {
+          pt.x = lerp(pt.x, state.ball.x, local * 0.09);
+          pt.y = lerp(pt.y, state.ball.y, local * 0.09);
+        }
+
+        if (Math.abs(state.recoil) > 0.001) {
+          const ripple = Math.sin(t * 3 + (forward ? 0 : Math.PI)) * state.recoil;
+          pt.x += Math.cos(t) * geo.radius * ripple * 0.07;
+          pt.y += Math.sin(t) * geo.height * ripple * 0.18;
+        }
+
+        points.push(pt);
       }
+
+      let d = `M${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+      for (let i = 0; i < points.length; i++) {
+        const p0 = points[(i - 1 + points.length) % points.length];
+        const p1 = points[i];
+        const p2 = points[(i + 1) % points.length];
+        const p3 = points[(i + 2) % points.length];
+        const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+        const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+        d += `C${c1.x.toFixed(2)} ${c1.y.toFixed(2)} ${c2.x.toFixed(2)} ${c2.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
+      }
+
       return `${d}Z`;
     }
 
-    function render(ball: { x: number; y: number }) {
-      const m = morphFor(ball);
-      const path = buildPath(m);
+    function render(state: ReturnType<typeof stateAt>, forward: boolean) {
+      const path = buildPath(state, forward);
       shapeRef.current?.setAttribute("d", path);
       highlightRef.current?.setAttribute("d", path);
       shadowRef.current?.setAttribute("d", path);
-      particleRef.current?.setAttribute("transform", `translate(${ball.x.toFixed(2)} ${ball.y.toFixed(2)})`);
+      particleRef.current?.setAttribute("transform", `translate(${state.ball.x.toFixed(2)} ${state.ball.y.toFixed(2)})`);
     }
 
     function frame(now: number) {
       if (!start) start = now;
       const elapsed = (now - start) / 1000;
+      const cycleIndex = Math.floor(elapsed / cycle);
       const p = (elapsed / cycle) % 1;
-      render(ballAt(p));
+      const forward = cycleIndex % 2 === 0;
+      render(stateAt(p, forward), forward);
       raf = window.requestAnimationFrame(frame);
     }
 
     if (reduce) {
-      render({ x: geo.cx, y: geo.cy });
+      render({ ball: geo.fromDock, frontT: 0, pull: 0, global: 0, contact: 0, recoil: 0 }, true);
     } else {
-      render(geo.fromDock);
+      render(stateAt(0, true), true);
       if (active) raf = window.requestAnimationFrame(frame);
     }
     return () => window.cancelAnimationFrame(raf);
@@ -186,18 +290,18 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
 
 function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
   const { shapeRef, highlightRef, shadowRef, particleRef } = useLoopSimulation(geo, true);
-  const edge = geo.cx + geo.reach;
+  const verticalDockLayout = Math.abs(geo.fromDock.x - geo.toDock.x) < 1;
+  const leftConnector = verticalDockLayout
+    ? `M${geo.toDock.x} ${geo.toDock.y + 30} C${geo.toDock.x - 82} ${geo.toDock.y + 86} ${geo.cx - geo.reach - 42} ${geo.cy - 52} ${geo.cx - geo.reach} ${geo.cy}`
+    : `M${geo.toDock.x + 72} ${geo.cy} L${geo.cx - geo.reach} ${geo.cy}`;
+  const rightConnector = verticalDockLayout
+    ? `M${geo.fromDock.x} ${geo.fromDock.y - 30} C${geo.fromDock.x + 82} ${geo.fromDock.y - 86} ${geo.cx + geo.reach + 42} ${geo.cy + 52} ${geo.cx + geo.reach} ${geo.cy}`
+    : `M${geo.fromDock.x - 72} ${geo.cy} L${geo.cx + geo.reach} ${geo.cy}`;
 
   return (
     <svg className={className} viewBox={viewBox} aria-hidden="true">
-      <path
-        className="loop-connector loop-connector-left"
-        d={`M${geo.cx - geo.reach - 62} ${geo.cy} L${geo.cx - geo.reach} ${geo.cy}`}
-      />
-      <path
-        className="loop-connector loop-connector-right"
-        d={`M${edge + 62} ${geo.cy} L${edge} ${geo.cy}`}
-      />
+      <path className="loop-connector loop-connector-left" d={leftConnector} />
+      <path className="loop-connector loop-connector-right" d={rightConnector} />
       <path ref={shadowRef} className="loop-core-shadow" />
       <path ref={shapeRef} className="loop-core-shape" />
       <path ref={highlightRef} className="loop-core-highlight" />
