@@ -81,10 +81,10 @@ function LockMark() {
   );
 }
 
-// The whole curve morphs as a system: a ball rides the loop, and each time it
-// sweeps through the right side it drives a spring `morph` that twists the
-// entire shape between circle and infinity, then rebounds. Nothing is a local
-// dent; the impact reshapes the full line.
+// The whole curve morphs on a calm fixed timeline, mirroring the header logo:
+// circle -> twist into infinity -> dwell -> untwist back to circle, eased and
+// looping. A ball rides the current curve at a steady pace. No spring, no
+// overshoot, so it breathes gently instead of pulsing.
 function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const shapeRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
@@ -94,29 +94,28 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   useEffect(() => {
     const n = geo.points;
     let raf = 0;
-    let last = 0;
-
-    // Whole-curve morph as a driven spring. rest target eases between circle and
-    // infinity; the ball's strike kicks velocity so the shape twists and rebounds.
-    let morph = 0;
-    let morphVel = 0;
-    const stiffness = 26;
-    const damping = 3.2;
-
-    let phase = 0; // ball parameter along the curve, [0, 2pi)
-    const period = 4.6; // seconds per lap
-    let struckThisLap = false;
+    let start = 0;
+    const cycle = 9; // seconds, same feel as the logo
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
+    const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+
+    // Morph over one normalized cycle p in [0,1): rise to infinity, hold, fall back.
+    function morphAt(p: number) {
+      if (p < 0.4) return easeInOut(p / 0.4); // circle -> infinity
+      if (p < 0.6) return 1; // dwell at infinity
+      return 1 - easeInOut((p - 0.6) / 0.4); // infinity -> circle
+    }
+
     function buildPath(m: number) {
       let d = "";
       for (let i = 0; i <= n; i++) {
         const t = ((i % n) / n) * Math.PI * 2;
-        const p = loopPoint(geo, t, m);
-        d += i === 0 ? `M${p.x.toFixed(2)} ${p.y.toFixed(2)}` : `L${p.x.toFixed(2)} ${p.y.toFixed(2)}`;
+        const pt = loopPoint(geo, t, m);
+        d += i === 0 ? `M${pt.x.toFixed(2)} ${pt.y.toFixed(2)}` : `L${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`;
       }
       return `${d}Z`;
     }
@@ -131,38 +130,12 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
     }
 
     function frame(now: number) {
-      if (!last) last = now;
-      let dt = (now - last) / 1000;
-      last = now;
-      if (dt > 0.05) dt = 0.05;
-
-      // Ball speeds up as it is flung outward (near the lobes) and eases at the waist.
-      const prevPhase = phase;
-      const speed = 1 + 0.85 * Math.abs(Math.sin(phase));
-      phase = (phase + (dt / period) * Math.PI * 2 * speed) % (Math.PI * 2);
-
-      // Strike once per lap as the ball crosses the right extreme (t = pi/2).
-      const target = Math.PI / 2;
-      if (prevPhase < target && phase >= target && !struckThisLap) {
-        morphVel += 9.5; // impact energy twisting the curve toward infinity
-        struckThisLap = true;
-      }
-      if (phase < target) struckThisLap = false;
-
-      // Whole-curve spring: pulled toward the infinity form, rebounding past it.
-      const restTarget = 0.72;
-      const accel = -stiffness * (morph - restTarget) - damping * morphVel;
-      morphVel += accel * dt;
-      morph += morphVel * dt;
-      if (morph < 0) {
-        morph = 0;
-        morphVel *= -0.4;
-      } else if (morph > 1.25) {
-        morph = 1.25;
-        morphVel *= -0.4;
-      }
-
-      render(morph, phase);
+      if (!start) start = now;
+      const elapsed = (now - start) / 1000;
+      const p = (elapsed / cycle) % 1;
+      const m = morphAt(p);
+      const ballT = (elapsed / (cycle * 0.5)) * Math.PI * 2; // ~2 laps per cycle
+      render(m, ballT);
       raf = window.requestAnimationFrame(frame);
     }
 
