@@ -2840,14 +2840,13 @@ tbody tr:hover {
 .loop-core-liquid {
   stroke: rgba(112, 214, 226, 0.42);
   stroke-width: 6.4;
-  opacity: 0.48;
+  opacity: 0.34;
   mix-blend-mode: screen;
 }
 
 .loop-core-shape {
   stroke: #9cc6ff;
   stroke-width: 4.6;
-  animation: loop-breathe 7.2s ease-in-out infinite;
   filter:
     drop-shadow(0 0 9px rgba(101, 172, 255, 0.4))
     drop-shadow(0 0 22px rgba(87, 204, 210, 0.18));
@@ -2858,14 +2857,13 @@ tbody tr:hover {
   stroke-width: 1.65;
   stroke-dasharray: 4 22 12 34;
   opacity: 0.72;
-  animation: loop-flow 7.2s linear infinite;
+  animation: loop-flow 9.2s linear infinite;
   filter: drop-shadow(0 0 8px rgba(148, 218, 255, 0.48));
 }
 
 .loop-core-highlight {
   stroke: rgba(238, 247, 255, 0.72);
   stroke-width: 1.1;
-  animation: loop-highlight 7.2s ease-in-out infinite;
   opacity: 0.55;
 }
 
