@@ -25,7 +25,7 @@ export function InfinityMark({ size = 30, animate = false, className }: Infinity
       <path
         d={animate ? CIRCLE : INFINITY}
         stroke="currentColor"
-        strokeWidth={2.4}
+        strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       >

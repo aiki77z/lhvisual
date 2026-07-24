@@ -1723,8 +1723,7 @@ button {
   transform: translateY(1px);
 }
 
-.site-nav,
-.footer-links {
+.site-nav {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2598,7 +2597,7 @@ tbody tr:hover {
   overflow: hidden;
   color: #7b8aa3;
   font-family: var(--mono);
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   pointer-events: none;
   user-select: none;
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
@@ -2654,7 +2653,6 @@ tbody tr:hover {
 
 .loop-connector,
 .loop-core-shadow,
-.loop-bend-orbit,
 .loop-core-shape,
 .loop-core-highlight {
   fill: none;
@@ -2664,59 +2662,39 @@ tbody tr:hover {
 }
 
 .loop-connector {
-  stroke: url(#loop-connector-desktop);
-  stroke-width: 1.55;
+  stroke: rgba(146, 188, 255, 0.42);
+  stroke-width: 1.4;
   stroke-dasharray: 2 12;
-  opacity: 0.78;
+  opacity: 0.7;
   animation: loop-connector-drift 4.8s linear infinite;
 }
 
-.loop-routes-mobile .loop-connector {
-  stroke: url(#loop-connector-mobile);
-}
-
 .loop-core-shadow {
-  stroke: rgba(116, 170, 255, 0.58);
-  stroke-width: 5.8;
-  stroke-dasharray: 3 18;
-  opacity: 0.34;
-  filter: drop-shadow(0 0 18px rgba(95, 166, 255, 0.26));
-  animation: loop-core-spark 7.2s linear infinite;
-}
-
-.loop-bend-orbit {
-  stroke: rgba(180, 215, 255, 0.36);
-  stroke-width: 2.2;
-  stroke-dasharray: 1 15;
-  opacity: 0.32;
-  filter: drop-shadow(0 0 12px rgba(116, 180, 255, 0.28));
-  animation: loop-orbit-pulse 8s ease-in-out infinite;
+  stroke: rgba(116, 170, 255, 0.4);
+  stroke-width: 11;
+  opacity: 0.28;
+  filter: blur(6px);
 }
 
 .loop-core-shape {
-  stroke: url(#loop-fluid-desktop);
-  stroke-width: 8.6;
+  stroke: #9cc6ff;
+  stroke-width: 4.6;
   filter:
-    drop-shadow(0 0 9px rgba(101, 172, 255, 0.36))
-    drop-shadow(0 0 22px rgba(87, 204, 210, 0.16));
-}
-
-.loop-routes-mobile .loop-core-shape {
-  stroke: url(#loop-fluid-mobile);
+    drop-shadow(0 0 9px rgba(101, 172, 255, 0.4))
+    drop-shadow(0 0 22px rgba(87, 204, 210, 0.18));
 }
 
 .loop-core-highlight {
-  stroke: rgba(238, 247, 255, 0.8);
-  stroke-width: 1.2;
-  stroke-dasharray: 1 22;
-  opacity: 0.64;
-  animation: loop-core-spark 3.6s linear infinite;
+  stroke: rgba(238, 247, 255, 0.72);
+  stroke-width: 1.1;
+  opacity: 0.55;
 }
 
 .stage-snapshot .loop-core-shape {
+  stroke: #b9d8ff;
   filter:
-    drop-shadow(0 0 13px rgba(169, 212, 255, 0.52))
-    drop-shadow(0 0 30px rgba(87, 204, 210, 0.24));
+    drop-shadow(0 0 13px rgba(169, 212, 255, 0.55))
+    drop-shadow(0 0 30px rgba(87, 204, 210, 0.26));
 }
 
 .stage-edit .loop-connector-left,
@@ -2828,9 +2806,9 @@ tbody tr:hover {
 
 .docker-station > small {
   margin-top: 9px;
-  color: #738099;
+  color: #8794ad;
   font-family: "Inter", system-ui, sans-serif;
-  font-size: 0.67rem;
+  font-size: 0.76rem;
   letter-spacing: 0.02em;
 }
 
@@ -2838,7 +2816,7 @@ tbody tr:hover {
   margin-top: 5px;
   color: #dbe3f0;
   font-family: "Inter", system-ui, sans-serif;
-  font-size: 1.18rem;
+  font-size: 1.3rem;
   font-weight: 550;
   letter-spacing: -0.02em;
 }
@@ -2846,12 +2824,12 @@ tbody tr:hover {
 .station-code,
 .station-tests {
   display: grid;
-  width: 200px;
+  width: 210px;
   margin-top: 20px;
-  gap: 7px;
-  color: #8290a6;
+  gap: 8px;
+  color: #929fb6;
   font-family: var(--mono);
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   text-align: left;
 }
 
@@ -2928,16 +2906,16 @@ tbody tr:hover {
 }
 
 .runtime-ledger strong {
-  color: #91a0b8;
+  color: #a3b1c9;
   font-family: "Inter", system-ui, sans-serif;
-  font-size: 0.66rem;
+  font-size: 0.78rem;
   font-weight: 500;
 }
 
 .runtime-ledger small {
   margin-top: 2px;
   font-family: var(--mono);
-  font-size: 0.5rem;
+  font-size: 0.62rem;
 }
 
 .loop-stage-description {
@@ -2948,9 +2926,9 @@ tbody tr:hover {
   justify-content: center;
   gap: 12px;
   margin: 5px auto 0;
-  color: #7f8ba0;
+  color: #8b96ac;
   font-family: "Inter", system-ui, sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   text-align: center;
 }
 
@@ -2966,15 +2944,6 @@ tbody tr:hover {
 
 @keyframes loop-connector-drift {
   to { stroke-dashoffset: -42; }
-}
-
-@keyframes loop-core-spark {
-  to { stroke-dashoffset: -46; }
-}
-
-@keyframes loop-orbit-pulse {
-  0%, 14%, 96%, 100% { opacity: 0.08; stroke-dashoffset: 28; }
-  36%, 68% { opacity: 0.34; stroke-dashoffset: -12; }
 }
 
 @keyframes loop-particle-bloom {
@@ -4041,7 +4010,6 @@ tbody tr:hover {
   .performance-fill,
   .loop-connector,
   .loop-core-shadow,
-  .loop-bend-orbit,
   .loop-core-shape,
   .loop-core-highlight,
   .loop-particle-glow,
@@ -4057,9 +4025,7 @@ tbody tr:hover {
     transform: scaleX(1);
   }
 
-  .loop-bend-orbit,
-  .loop-particle,
-  .loop-routes animateMotion {
+  .loop-particle-glow {
     display: none;
   }
 }

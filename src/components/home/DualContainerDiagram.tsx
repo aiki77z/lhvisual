@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Stage = "edit" | "snapshot" | "verify";
 
@@ -28,19 +28,37 @@ const backgroundTerms = [
   { text: "observation_history.jsonl", className: "term-h" },
 ];
 
-const desktopCirclePath =
-  "M500 142 C548.6 142 588 181.4 588 230 C588 278.6 548.6 318 500 318 C451.4 318 412 278.6 412 230 C412 181.4 451.4 142 500 142 Z";
-const desktopInfinityPath =
-  "M500 230 C500 145 320 145 320 230 C320 315 500 315 500 230 C500 145 680 145 680 230 C680 315 500 315 500 230 Z";
-const desktopParticlePath =
-  "M800 230 C752 230 716 230 680 230 C680 145 500 145 500 230 C500 315 320 315 320 230 C320 145 500 145 500 230 C500 315 680 315 680 230 C716 230 752 230 800 230";
+// Geometry of the lemniscate the particle rides. Two lobes centered at cx +/- span.
+type LoopGeometry = {
+  cx: number;
+  cy: number;
+  span: number; // horizontal distance from center to each lobe center
+  lobe: number; // lobe radius
+  points: number; // samples per closed path
+  amp: number; // max outward deformation in px
+};
 
-const mobileCirclePath =
-  "M180 306 C204.3 306 224 325.7 224 350 C224 374.3 204.3 394 180 394 C155.7 394 136 374.3 136 350 C136 325.7 155.7 306 180 306 Z";
-const mobileInfinityPath =
-  "M180 350 C180 296 70 296 70 350 C70 404 180 404 180 350 C180 296 290 296 290 350 C290 404 180 404 180 350 Z";
-const mobileParticlePath =
-  "M180 552 C180 500 290 454 290 350 C290 296 180 296 180 350 C180 404 70 404 70 350 C70 296 180 296 180 350 C180 404 290 404 290 350 C290 452 180 500 180 552";
+const desktopGeo: LoopGeometry = { cx: 500, cy: 230, span: 90, lobe: 90, points: 120, amp: 26 };
+const mobileGeo: LoopGeometry = { cx: 180, cy: 350, span: 55, lobe: 55, points: 120, amp: 18 };
+
+// Parametric lemniscate of Gerono-like figure eight, t in [0, 2pi).
+// Returns the rest position and outward normal for a given parameter.
+function loopPoint(geo: LoopGeometry, t: number) {
+  const s = Math.sin(t);
+  const c = Math.cos(t);
+  // Base figure-eight: x sweeps two lobes, y crosses zero at the waist.
+  const x = geo.cx + (geo.span + geo.lobe) * s;
+  const y = geo.cy + geo.lobe * s * c;
+  // Outward normal via derivative.
+  const dx = (geo.span + geo.lobe) * c;
+  const dy = geo.lobe * (c * c - s * s);
+  const len = Math.hypot(dx, dy) || 1;
+  // Normal points away from the horizontal axis for a pleasing bulge.
+  const nx = -dy / len;
+  const ny = dx / len;
+  const sign = y >= geo.cy ? 1 : -1;
+  return { x, y, nx: nx * sign, ny: ny * sign };
+}
 
 function DockerMark() {
   return (
@@ -59,6 +77,124 @@ function LockMark() {
   );
 }
 
+// One deformable loop: samples the lemniscate, springs each sample outward as the
+// particle passes, and rebuilds a smooth closed path each frame.
+function useLoopSimulation(geo: LoopGeometry, active: boolean) {
+  const shapeRef = useRef<SVGPathElement | null>(null);
+  const highlightRef = useRef<SVGPathElement | null>(null);
+  const shadowRef = useRef<SVGPathElement | null>(null);
+  const particleRef = useRef<SVGGElement | null>(null);
+
+  useEffect(() => {
+    const n = geo.points;
+    const disp = new Float32Array(n); // current outward displacement per sample
+    const vel = new Float32Array(n); // spring velocity per sample
+    const stiffness = 210;
+    const damping = 14;
+
+    let raf = 0;
+    let last = 0;
+    let phase = 0; // particle parameter in [0, 2pi)
+    const period = 7.2; // seconds per full figure-eight
+
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    function buildPath() {
+      let d = "";
+      for (let i = 0; i <= n; i++) {
+        const idx = i % n;
+        const t = (idx / n) * Math.PI * 2;
+        const p = loopPoint(geo, t);
+        const off = disp[idx];
+        const x = p.x + p.nx * off;
+        const y = p.y + p.ny * off;
+        d += i === 0 ? `M${x.toFixed(2)} ${y.toFixed(2)}` : `L${x.toFixed(2)} ${y.toFixed(2)}`;
+      }
+      return `${d}Z`;
+    }
+
+    function frame(now: number) {
+      if (!last) last = now;
+      let dt = (now - last) / 1000;
+      last = now;
+      if (dt > 0.05) dt = 0.05;
+
+      phase = (phase + (dt / period) * Math.PI * 2) % (Math.PI * 2);
+      const head = loopPoint(geo, phase);
+
+      // Strike: push samples near the particle outward, weighted by a narrow kernel.
+      const strikeReach = Math.round(n * 0.08);
+      const headIdx = Math.round((phase / (Math.PI * 2)) * n) % n;
+      for (let k = -strikeReach; k <= strikeReach; k++) {
+        const idx = (headIdx + k + n) % n;
+        const falloff = Math.exp(-(k * k) / (strikeReach * 0.62) ** 2);
+        vel[idx] += geo.amp * falloff * dt * 46;
+      }
+
+      // Spring relaxation back to the rest shape (the rebound).
+      for (let i = 0; i < n; i++) {
+        const accel = -stiffness * disp[i] - damping * vel[i];
+        vel[i] += accel * dt;
+        disp[i] += vel[i] * dt;
+        const cap = geo.amp * 1.35;
+        if (disp[i] > cap) disp[i] = cap;
+        else if (disp[i] < -cap) disp[i] = -cap;
+      }
+
+      const path = buildPath();
+      shapeRef.current?.setAttribute("d", path);
+      highlightRef.current?.setAttribute("d", path);
+      shadowRef.current?.setAttribute("d", path);
+      if (particleRef.current) {
+        particleRef.current.setAttribute("transform", `translate(${head.x.toFixed(2)} ${head.y.toFixed(2)})`);
+      }
+
+      raf = window.requestAnimationFrame(frame);
+    }
+
+    // Always render the rest shape once so SSR/static markup has something.
+    const rest = buildPath();
+    shapeRef.current?.setAttribute("d", rest);
+    highlightRef.current?.setAttribute("d", rest);
+    shadowRef.current?.setAttribute("d", rest);
+    const restHead = loopPoint(geo, 0);
+    particleRef.current?.setAttribute("transform", `translate(${restHead.x} ${restHead.y})`);
+
+    if (!reduce && active) {
+      raf = window.requestAnimationFrame(frame);
+    }
+    return () => window.cancelAnimationFrame(raf);
+  }, [geo, active]);
+
+  return { shapeRef, highlightRef, shadowRef, particleRef };
+}
+
+function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
+  const { shapeRef, highlightRef, shadowRef, particleRef } = useLoopSimulation(geo, true);
+
+  return (
+    <svg className={className} viewBox={viewBox} aria-hidden="true">
+      <path
+        className="loop-connector loop-connector-left"
+        d={`M${geo.cx - geo.span - geo.lobe - 62} ${geo.cy} L${geo.cx - geo.span - geo.lobe} ${geo.cy}`}
+      />
+      <path
+        className="loop-connector loop-connector-right"
+        d={`M${geo.cx + geo.span + geo.lobe + 62} ${geo.cy} L${geo.cx + geo.span + geo.lobe} ${geo.cy}`}
+      />
+      <path ref={shadowRef} className="loop-core-shadow" />
+      <path ref={shapeRef} className="loop-core-shape" />
+      <path ref={highlightRef} className="loop-core-highlight" />
+      <g ref={particleRef} className="loop-particle">
+        <circle className="loop-particle-glow" r={geo.amp * 0.72} />
+        <circle className="loop-particle-core" r={geo === desktopGeo ? 6.4 : 5.8} />
+      </g>
+    </svg>
+  );
+}
+
 export function DualContainerDiagram() {
   const [activeStage, setActiveStage] = useState<Stage>("edit");
   const active = stageCopy[activeStage];
@@ -72,57 +208,8 @@ export function DualContainerDiagram() {
       </div>
 
       <div className="docker-loop-scene">
-        <svg className="loop-routes loop-routes-desktop" viewBox="0 0 1000 460" aria-hidden="true">
-          <defs>
-            <linearGradient id="loop-fluid-desktop" x1="0" x2="1">
-              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".45" />
-              <stop offset=".5" stopColor="#b7d8ff" />
-              <stop offset="1" stopColor="#63c7cc" stopOpacity=".72" />
-            </linearGradient>
-            <linearGradient id="loop-connector-desktop" x1="0" x2="1">
-              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".12" />
-              <stop offset=".52" stopColor="#90bcff" stopOpacity=".5" />
-              <stop offset="1" stopColor="#63c7cc" stopOpacity=".18" />
-            </linearGradient>
-          </defs>
-          <path className="loop-connector loop-connector-left" d="M250 230 C284 230 300 230 320 230" />
-          <path className="loop-connector loop-connector-right" d="M750 230 C716 230 700 230 680 230" />
-          <path className="loop-core-shadow" d={desktopInfinityPath} />
-          <path className="loop-bend-orbit" d={desktopCirclePath} />
-          <path className="loop-core-shape" d={desktopInfinityPath} />
-          <path className="loop-core-highlight" d={desktopInfinityPath} />
-          <g className="loop-particle">
-            <circle className="loop-particle-glow" r="19" />
-            <circle className="loop-particle-core" r="6.4" />
-            <animateMotion dur="8s" path={desktopParticlePath} repeatCount="indefinite" />
-          </g>
-        </svg>
-
-        <svg className="loop-routes loop-routes-mobile" viewBox="0 0 360 700" aria-hidden="true">
-          <defs>
-            <linearGradient id="loop-fluid-mobile" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".5" />
-              <stop offset=".5" stopColor="#b7d8ff" />
-              <stop offset="1" stopColor="#63c7cc" stopOpacity=".72" />
-            </linearGradient>
-            <linearGradient id="loop-connector-mobile" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".18" />
-              <stop offset=".48" stopColor="#90bcff" stopOpacity=".5" />
-              <stop offset="1" stopColor="#63c7cc" stopOpacity=".18" />
-            </linearGradient>
-          </defs>
-          <path className="loop-connector loop-connector-left" d="M180 152 C180 220 180 260 180 296" />
-          <path className="loop-connector loop-connector-right" d="M180 548 C180 480 180 438 180 404" />
-          <path className="loop-core-shadow" d={mobileInfinityPath} />
-          <path className="loop-bend-orbit" d={mobileCirclePath} />
-          <path className="loop-core-shape" d={mobileInfinityPath} />
-          <path className="loop-core-highlight" d={mobileInfinityPath} />
-          <g className="loop-particle">
-            <circle className="loop-particle-glow" r="17" />
-            <circle className="loop-particle-core" r="5.8" />
-            <animateMotion dur="8s" path={mobileParticlePath} repeatCount="indefinite" />
-          </g>
-        </svg>
+        <LoopScene geo={desktopGeo} className="loop-routes loop-routes-desktop" viewBox="0 0 1000 460" />
+        <LoopScene geo={mobileGeo} className="loop-routes loop-routes-mobile" viewBox="0 0 360 700" />
 
         <button
           className="infinity-loop-control"
