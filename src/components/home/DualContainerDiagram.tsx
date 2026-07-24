@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { INFINITY_MARK_PATH } from "../brand/InfinityMark";
 
 type Stage = "edit" | "snapshot" | "verify";
 
@@ -31,211 +32,27 @@ const backgroundTerms = [
 type LoopGeometry = {
   cx: number;
   cy: number;
-  radius: number; // circle radius at rest
-  reach: number; // half-width of each infinity lobe
-  height: number; // vertical extent of each lobe
-  fromDock: { x: number; y: number }; // right Docker (ball starts here)
-  toDock: { x: number; y: number }; // left Docker (ball ends here)
+  reach: number;
+  height: number;
+  fromDock: { x: number; y: number };
+  toDock: { x: number; y: number };
 };
 
 const desktopGeo: LoopGeometry = {
-  cx: 500, cy: 230, radius: 96, reach: 182, height: 92,
+  cx: 500, cy: 230, reach: 184, height: 78,
   fromDock: { x: 812, y: 230 },
   toDock: { x: 188, y: 230 },
 };
 const mobileGeo: LoopGeometry = {
-  cx: 180, cy: 350, radius: 62, reach: 118, height: 60,
+  cx: 180, cy: 350, reach: 118, height: 54,
   fromDock: { x: 180, y: 560 },
   toDock: { x: 180, y: 140 },
 };
 
-type Point = { x: number; y: number };
-type RopeParticle = Point & { px: number; py: number };
-type MotionState = {
-  contact: number;
-  target: Point;
-  visualBall: Point;
-  tension: number;
-  attach: number;
-};
-
-const ROPE_POINTS = 96;
-const REST_TENSION = 0.1;
-const TWO_PI = Math.PI * 2;
-
-function clamp01(value: number) {
-  return value < 0 ? 0 : value > 1 ? 1 : value;
-}
-
-function smoothstep(value: number) {
-  const u = clamp01(value);
-  return u * u * (3 - 2 * u);
-}
-
-function easeInOut(value: number) {
-  const u = clamp01(value);
-  return u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
-}
-
-function lerp(a: number, b: number, u: number) {
-  return a + (b - a) * u;
-}
-
-function lerpPoint(a: Point, b: Point, u: number) {
-  return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) };
-}
-
-function circularDistance(a: number, b: number, count: number) {
-  const d = Math.abs(a - b) % count;
-  return Math.min(d, count - d);
-}
-
-function thetaForIndex(index: number, count = ROPE_POINTS) {
-  return (index / count) * TWO_PI;
-}
-
-function ropeShapePoint(geo: LoopGeometry, theta: number, tension: number) {
-  const circle = {
-    x: geo.cx + Math.cos(theta) * geo.radius,
-    y: geo.cy + Math.sin(theta) * geo.radius,
-  };
-  const infinity = {
-    x: geo.cx + Math.cos(theta) * geo.reach,
-    y: geo.cy + Math.sin(theta * 2) * geo.height,
-  };
-
-  return lerpPoint(circle, infinity, smoothstep(tension));
-}
-
-function createRope(geo: LoopGeometry) {
-  return Array.from({ length: ROPE_POINTS }, (_, index): RopeParticle => {
-    const point = ropeShapePoint(geo, thetaForIndex(index), REST_TENSION);
-    return { ...point, px: point.x, py: point.y };
-  });
-}
-
-function pointAtContact(points: RopeParticle[], contact: number) {
-  const count = points.length;
-  const wrapped = ((contact % count) + count) % count;
-  const base = Math.floor(wrapped);
-  const next = (base + 1) % count;
-  return lerpPoint(points[base], points[next], wrapped - base);
-}
-
-function applySoftAttachment(points: RopeParticle[], contact: number, target: Point, strength: number) {
-  if (strength <= 0) return;
-
-  const current = pointAtContact(points, contact);
-  const dx = target.x - current.x;
-  const dy = target.y - current.y;
-  const count = points.length;
-
-  points.forEach((point, index) => {
-    const distance = circularDistance(index, contact, count);
-    const weight = Math.exp(-(distance * distance) / 72) * strength;
-    point.x += dx * weight;
-    point.y += dy * weight;
-    point.px += dx * weight;
-    point.py += dy * weight;
-  });
-}
-
-function segmentLength(geo: LoopGeometry, index: number, tension: number, count = ROPE_POINTS) {
-  const current = ropeShapePoint(geo, thetaForIndex(index, count), tension);
-  const next = ropeShapePoint(geo, thetaForIndex(index + 1, count), tension);
-  return Math.hypot(next.x - current.x, next.y - current.y);
-}
-
-function relaxSegments(points: RopeParticle[], geo: LoopGeometry, tension: number) {
-  const count = points.length;
-
-  for (let iteration = 0; iteration < 16; iteration += 1) {
-    for (let index = 0; index < count; index += 1) {
-      const point = points[index];
-      const next = points[(index + 1) % count];
-      const dx = next.x - point.x;
-      const dy = next.y - point.y;
-      const distance = Math.hypot(dx, dy) || 0.001;
-      const wanted = segmentLength(geo, index, tension, count);
-      const correction = ((distance - wanted) / distance) * 0.5;
-      const x = dx * correction;
-      const y = dy * correction;
-
-      point.x += x;
-      point.y += y;
-      next.x -= x;
-      next.y -= y;
-    }
-  }
-}
-
-function stepRope(points: RopeParticle[], geo: LoopGeometry, state: MotionState) {
-  const shapePull = lerp(0.014, 0.046, state.tension);
-  const damping = 0.58;
-
-  points.forEach((point, index) => {
-    const vx = (point.x - point.px) * damping;
-    const vy = (point.y - point.py) * damping;
-    const target = ropeShapePoint(geo, thetaForIndex(index, points.length), state.tension);
-    const distance = circularDistance(index, state.contact, points.length);
-    const waveRadius = lerp(48, 760, smoothstep(state.tension));
-    const wavePull = Math.exp(-(distance * distance) / waveRadius);
-    const localPull = shapePull * (0.42 + wavePull * 0.85);
-
-    point.px = point.x;
-    point.py = point.y;
-    point.x += vx + (target.x - point.x) * localPull;
-    point.y += vy + (target.y - point.y) * localPull;
-  });
-
-  applySoftAttachment(points, state.contact, state.target, state.attach * 0.46);
-  relaxSegments(points, geo, state.tension);
-  applySoftAttachment(points, state.contact, state.target, state.attach * 0.22);
-  relaxSegments(points, geo, state.tension);
-}
-
-function smoothedRope(points: RopeParticle[]) {
-  let smoothed = points.map(({ x, y }) => ({ x, y }));
-
-  for (let pass = 0; pass < 5; pass += 1) {
-    smoothed = smoothed.map((point, index, loop) => {
-      const previous = loop[(index - 1 + loop.length) % loop.length];
-      const next = loop[(index + 1) % loop.length];
-      return {
-        x: previous.x * 0.24 + point.x * 0.52 + next.x * 0.24,
-        y: previous.y * 0.24 + point.y * 0.52 + next.y * 0.24,
-      };
-    });
-  }
-
-  return smoothed;
-}
-
-function closedSplinePath(points: Point[]) {
-  const count = points.length;
-  const commands = [`M${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
-  const smoothing = 0.68;
-
-  for (let index = 0; index < count; index += 1) {
-    const p0 = points[(index - 1 + count) % count];
-    const p1 = points[index];
-    const p2 = points[(index + 1) % count];
-    const p3 = points[(index + 2) % count];
-    const c1 = {
-      x: p1.x + ((p2.x - p0.x) * smoothing) / 6,
-      y: p1.y + ((p2.y - p0.y) * smoothing) / 6,
-    };
-    const c2 = {
-      x: p2.x - ((p3.x - p1.x) * smoothing) / 6,
-      y: p2.y - ((p3.y - p1.y) * smoothing) / 6,
-    };
-
-    commands.push(
-      `C${c1.x.toFixed(2)} ${c1.y.toFixed(2)} ${c2.x.toFixed(2)} ${c2.y.toFixed(2)} ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`,
-    );
-  }
-
-  return commands.join("");
+function loopIconTransform(geo: LoopGeometry) {
+  const scaleX = geo.reach / 17;
+  const scaleY = geo.height / 8;
+  return `translate(${geo.cx} ${geo.cy}) scale(${scaleX} ${scaleY}) translate(-21 -16)`;
 }
 
 
@@ -256,158 +73,9 @@ function LockMark() {
   );
 }
 
-// A small Verlet rope: the particle pulls a soft contact patch, constraints carry
-// the rest of the loop into an infinity shape, then the same rope recoils.
-function useLoopSimulation(geo: LoopGeometry, active: boolean) {
-  const shapeRef = useRef<SVGPathElement | null>(null);
-  const highlightRef = useRef<SVGPathElement | null>(null);
-  const shadowRef = useRef<SVGPathElement | null>(null);
-  const particleRef = useRef<SVGGElement | null>(null);
-
-  useEffect(() => {
-    let raf = 0;
-    let start = 0;
-    let previous = 0;
-    let cycleIndex = -1;
-    let points = createRope(geo);
-    const cycle = 15.4;
-    const approachEnd = 0.19;
-    const pullEnd = 0.68;
-    const tautEnd = 0.8;
-    const releaseEnd = 0.96;
-
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-    function stateAt(progress: number, forward: boolean): MotionState {
-      const startDock = forward ? geo.fromDock : geo.toDock;
-      const endDock = forward ? geo.toDock : geo.fromDock;
-      const startContact = forward ? 0 : ROPE_POINTS / 2;
-      const endContact = forward ? ROPE_POINTS / 2 : ROPE_POINTS;
-      const startSide = ropeShapePoint(geo, thetaForIndex(startContact), REST_TENSION);
-      const endSide = ropeShapePoint(geo, thetaForIndex(endContact), 1);
-
-      if (progress < approachEnd) {
-        const u = easeInOut(progress / approachEnd);
-        const attach = smoothstep((u - 0.68) / 0.32);
-        const push = {
-          x: startSide.x + (forward ? 1 : -1) * 16 * attach,
-          y: startSide.y,
-        };
-        return {
-          contact: startContact,
-          target: lerpPoint(startSide, push, attach),
-          visualBall: lerpPoint(startDock, startSide, u),
-          tension: REST_TENSION,
-          attach: attach * 0.72,
-        };
-      }
-
-      if (progress < pullEnd) {
-        const u = easeInOut((progress - approachEnd) / (pullEnd - approachEnd));
-        const contact = lerp(startContact, endContact, u);
-        const theta = thetaForIndex(contact);
-        const tension = lerp(REST_TENSION, 1, smoothstep((u - 0.05) / 0.86));
-
-        return {
-          contact,
-          target: ropeShapePoint(geo, theta, 1),
-          visualBall: ropeShapePoint(geo, theta, 1),
-          tension,
-          attach: 0.92,
-        };
-      }
-
-      if (progress < tautEnd) {
-        return {
-          contact: endContact,
-          target: endSide,
-          visualBall: endSide,
-          tension: 1,
-          attach: 0.95,
-        };
-      }
-
-      if (progress < releaseEnd) {
-        const u = (progress - tautEnd) / (releaseEnd - tautEnd);
-        const eased = easeInOut(u);
-        const spring = Math.max(0, Math.sin(u * Math.PI * 2.8)) * Math.exp(-3.8 * u);
-        return {
-          contact: endContact,
-          target: lerpPoint(endSide, endDock, eased),
-          visualBall: lerpPoint(endSide, endDock, eased),
-          tension: clamp01(REST_TENSION + (1 - eased) ** 1.35 * (1 - REST_TENSION) + spring * 0.07),
-          attach: (1 - smoothstep(u)) * 0.5,
-        };
-      }
-
-      return {
-        contact: endContact,
-        target: endDock,
-        visualBall: endDock,
-        tension: REST_TENSION,
-        attach: 0,
-      };
-    }
-
-    function render(state: MotionState) {
-      const contactBall = pointAtContact(points, state.contact);
-      const ball = lerpPoint(state.visualBall, contactBall, smoothstep(state.attach));
-      const path = closedSplinePath(smoothedRope(points));
-      shapeRef.current?.setAttribute("d", path);
-      highlightRef.current?.setAttribute("d", path);
-      shadowRef.current?.setAttribute("d", path);
-      particleRef.current?.setAttribute("transform", `translate(${ball.x.toFixed(2)} ${ball.y.toFixed(2)})`);
-    }
-
-    function frame(now: number) {
-      if (!start) start = now;
-      if (!previous) previous = now;
-      const elapsed = (now - start) / 1000;
-      const nextCycleIndex = Math.floor(elapsed / cycle);
-      const p = (elapsed / cycle) % 1;
-      const forward = nextCycleIndex % 2 === 0;
-
-      if (cycleIndex !== nextCycleIndex) {
-        points = createRope(geo);
-        cycleIndex = nextCycleIndex;
-      }
-
-      const dt = Math.min((now - previous) / 1000, 1 / 30);
-      previous = now;
-      const state = stateAt(p, forward);
-      const substeps = Math.max(1, Math.ceil(dt / (1 / 90)));
-
-      for (let step = 0; step < substeps; step += 1) {
-        stepRope(points, geo, state);
-      }
-
-      render(state);
-      raf = window.requestAnimationFrame(frame);
-    }
-
-    if (reduce) {
-      render({
-        contact: 0,
-        target: ropeShapePoint(geo, 0, REST_TENSION),
-        visualBall: geo.fromDock,
-        tension: REST_TENSION,
-        attach: 0,
-      });
-    } else {
-      render(stateAt(0, true));
-      if (active) raf = window.requestAnimationFrame(frame);
-    }
-    return () => window.cancelAnimationFrame(raf);
-  }, [geo, active]);
-
-  return { shapeRef, highlightRef, shadowRef, particleRef };
-}
-
 function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
-  const { shapeRef, highlightRef, shadowRef, particleRef } = useLoopSimulation(geo, true);
   const verticalDockLayout = Math.abs(geo.fromDock.x - geo.toDock.x) < 1;
+  const iconTransform = loopIconTransform(geo);
   const leftConnector = verticalDockLayout
     ? `M${geo.toDock.x} ${geo.toDock.y + 30} C${geo.toDock.x - 82} ${geo.toDock.y + 86} ${geo.cx - geo.reach - 42} ${geo.cy - 52} ${geo.cx - geo.reach} ${geo.cy}`
     : `M${geo.toDock.x + 72} ${geo.cy} C${geo.toDock.x + 128} ${geo.cy - 16} ${geo.cx - geo.reach - 70} ${geo.cy + 16} ${geo.cx - geo.reach} ${geo.cy}`;
@@ -419,12 +87,15 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
     <svg className={className} viewBox={viewBox} aria-hidden="true">
       <path className="loop-connector loop-connector-left" d={leftConnector} />
       <path className="loop-connector loop-connector-right" d={rightConnector} />
-      <path ref={shadowRef} className="loop-core-shadow" />
-      <path ref={shapeRef} className="loop-core-shape" />
-      <path ref={highlightRef} className="loop-core-highlight" />
-      <g ref={particleRef} className="loop-particle">
-        <circle className="loop-particle-glow" r={geo === desktopGeo ? 17 : 13} />
-        <circle className="loop-particle-core" r={geo === desktopGeo ? 6.4 : 5.8} />
+      <g transform={iconTransform}>
+        <path className="loop-core-shadow" d={INFINITY_MARK_PATH} />
+        <path className="loop-core-shape" d={INFINITY_MARK_PATH} />
+        <path className="loop-core-highlight" d={INFINITY_MARK_PATH} />
+        <g className="loop-particle">
+          <animateMotion dur="7.2s" repeatCount="indefinite" path={INFINITY_MARK_PATH} />
+          <circle className="loop-particle-glow" r={geo === desktopGeo ? 1.6 : 1.45} />
+          <circle className="loop-particle-core" r={geo === desktopGeo ? 0.58 : 0.52} />
+        </g>
       </g>
     </svg>
   );
