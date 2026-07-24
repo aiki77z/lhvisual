@@ -38,10 +38,17 @@ type LoopGeometry = {
   reach: number; // half-width of each infinity lobe
   height: number; // vertical extent of each lobe
   points: number; // samples per closed path
+  launch: { x: number; y: number }; // where the ball is fired from (the tester Docker)
 };
 
-const desktopGeo: LoopGeometry = { cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 160 };
-const mobileGeo: LoopGeometry = { cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 160 };
+const desktopGeo: LoopGeometry = {
+  cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 160,
+  launch: { x: 812, y: 230 },
+};
+const mobileGeo: LoopGeometry = {
+  cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 160,
+  launch: { x: 180, y: 560 },
+};
 
 // Point on the rest circle for parameter t in [0, 2pi).
 function circlePoint(geo: LoopGeometry, t: number) {
@@ -81,10 +88,10 @@ function LockMark() {
   );
 }
 
-// The whole curve morphs on a calm fixed timeline, mirroring the header logo:
-// circle -> twist into infinity -> dwell -> untwist back to circle, eased and
-// looping. A ball rides the current curve at a steady pace. No spring, no
-// overshoot, so it breathes gently instead of pulsing.
+// A ball is fired from the right Docker station, flies into the loop, and its
+// impact on the right edge is what twists the whole curve from circle into the
+// infinity sign; then the curve springs back and the ball returns. Eased and
+// looping, calm like the header logo.
 function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const shapeRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
@@ -95,19 +102,43 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
     const n = geo.points;
     let raf = 0;
     let start = 0;
-    const cycle = 9; // seconds, same feel as the logo
+    const cycle = 6.5; // seconds per strike cycle
 
     const reduce =
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
     const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+    const easeOut = (u: number) => 1 - (1 - u) ** 3;
+    const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 
-    // Morph over one normalized cycle p in [0,1): rise to infinity, hold, fall back.
+    // The point on the curve the ball strikes: the right edge, at the waist line.
+    const strike = { x: geo.cx + geo.radius + 4, y: geo.cy };
+
+    // Morph 0 (circle) -> 1 (infinity), driven by the impact, then released.
     function morphAt(p: number) {
-      if (p < 0.4) return easeInOut(p / 0.4); // circle -> infinity
-      if (p < 0.6) return 1; // dwell at infinity
-      return 1 - easeInOut((p - 0.6) / 0.4); // infinity -> circle
+      if (p < 0.3) return 0; // ball still incoming
+      if (p < 0.42) return easeOut((p - 0.3) / 0.12); // impact twists into infinity
+      if (p < 0.56) return 1; // dwell at infinity
+      if (p < 0.74) return 1 - easeInOut((p - 0.56) / 0.18); // untwist back to circle
+      return 0; // at rest
+    }
+
+    // Ball position: fly in, snap at impact, recoil and return to the launcher.
+    function ballAt(p: number) {
+      const L = geo.launch;
+      if (p < 0.3) {
+        const u = easeInOut(p / 0.3); // launch -> strike
+        return { x: lerp(L.x, strike.x, u), y: lerp(L.y, strike.y, u) };
+      }
+      if (p < 0.42) {
+        return strike; // contact
+      }
+      if (p < 0.74) {
+        const u = easeInOut((p - 0.42) / 0.32); // strike -> back to launcher
+        return { x: lerp(strike.x, L.x, u), y: lerp(strike.y, L.y, u) };
+      }
+      return L; // waiting at the launcher
     }
 
     function buildPath(m: number) {
@@ -120,26 +151,23 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
       return `${d}Z`;
     }
 
-    function render(m: number, ballT: number) {
+    function render(m: number, ball: { x: number; y: number }) {
       const path = buildPath(m);
       shapeRef.current?.setAttribute("d", path);
       highlightRef.current?.setAttribute("d", path);
       shadowRef.current?.setAttribute("d", path);
-      const b = loopPoint(geo, ballT, m);
-      particleRef.current?.setAttribute("transform", `translate(${b.x.toFixed(2)} ${b.y.toFixed(2)})`);
+      particleRef.current?.setAttribute("transform", `translate(${ball.x.toFixed(2)} ${ball.y.toFixed(2)})`);
     }
 
     function frame(now: number) {
       if (!start) start = now;
       const elapsed = (now - start) / 1000;
       const p = (elapsed / cycle) % 1;
-      const m = morphAt(p);
-      const ballT = (elapsed / (cycle * 0.5)) * Math.PI * 2; // ~2 laps per cycle
-      render(m, ballT);
+      render(morphAt(p), ballAt(p));
       raf = window.requestAnimationFrame(frame);
     }
 
-    render(reduce ? 1 : 0, reduce ? Math.PI / 2 : 0);
+    render(reduce ? 1 : 0, reduce ? { x: geo.cx + geo.radius + 4, y: geo.cy } : geo.launch);
     if (!reduce && active) {
       raf = window.requestAnimationFrame(frame);
     }
