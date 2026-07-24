@@ -9,7 +9,7 @@ function timelineSecond(at: string) {
 }
 
 function playbackTime(realSeconds: number) {
-  return realSeconds <= 30 ? realSeconds * 0.7 : 21 + (realSeconds - 30) * 0.12;
+  return realSeconds <= 30 ? realSeconds * 1.8 : 54 + (realSeconds - 30) * 0.56;
 }
 
 export function CaseReplayCard() {

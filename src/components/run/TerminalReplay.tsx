@@ -35,7 +35,10 @@ const lanes: CastLane[] = [
   { id: "tester", label: "Test / verifier docker", prompt: "tester@host_wrapped", href: caseSummary.testerCastHref },
 ];
 
-const testerLineCadenceSeconds = 0.024;
+const agentFinishedAtRealSeconds = 461.29767;
+const testerFirstRunAtRealSeconds = 209.322438;
+const testerRunDelayAfterAgentSeconds = 8;
+const testerLineCadenceSeconds = 0.055;
 
 const ansiPattern = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\))/g;
 
@@ -48,7 +51,22 @@ function cleanTerminalText(value: string) {
 }
 
 function playbackTime(realSeconds: number) {
-  return realSeconds <= 30 ? realSeconds * 0.7 : 21 + (realSeconds - 30) * 0.12;
+  return realSeconds <= 30 ? realSeconds * 1.8 : 54 + (realSeconds - 30) * 0.56;
+}
+
+function alignLanePlaybackTime(laneId: CastLane["id"], realSeconds: number) {
+  const baseTime = playbackTime(realSeconds);
+
+  if (laneId !== "tester" || realSeconds < testerFirstRunAtRealSeconds) {
+    return baseTime;
+  }
+
+  return (
+    baseTime +
+    playbackTime(agentFinishedAtRealSeconds) -
+    playbackTime(testerFirstRunAtRealSeconds) +
+    testerRunDelayAfterAgentSeconds
+  );
 }
 
 function displayTime(seconds: number) {
@@ -396,7 +414,7 @@ export function TerminalReplay({ playhead, onDurationChange }: TerminalReplayPro
             .map((line) => {
               const parsed = JSON.parse(line) as [number, string, string];
               const cleaned = cleanTerminalText(parsed[2]);
-              return { at: playbackTime(parsed[0]), text: cleaned, level: levelForText(cleaned) };
+              return { at: alignLanePlaybackTime(lane.id, parsed[0]), text: cleaned, level: levelForText(cleaned) };
             })
             .filter((event) => event.text.trim().length > 0);
 

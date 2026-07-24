@@ -24,7 +24,7 @@ const nodeOrder = [
 const yOffset = 30;
 
 function statusLabel(status: CaseDagNode["status"]) {
-  if (status === "done") return "passed";
+  if (status === "done") return "done";
   if (status === "running") return "agent";
   if (status === "testing") return "tests";
   return status;
