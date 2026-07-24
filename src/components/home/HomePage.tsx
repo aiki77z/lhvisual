@@ -26,10 +26,7 @@ export function HomePage() {
             <span>in Coding Agent Evaluation</span>
           </p>
           <div className="hero-prompt">
-            <a className="action-button action-button-primary" href={toAppPath("/run")}>
-              Run your loop
-              <span aria-hidden="true">↗</span>
-            </a>
+            <a className="hero-run-link" href={toAppPath("/run")}>Run your loop</a>
           </div>
         </div>
         <div className="hero-scroll-cue" aria-hidden="true">
@@ -92,6 +89,23 @@ export function HomePage() {
             <span>75</span>
             <span>100%</span>
           </div>
+        </a>
+
+        <a className="submit-preview" href={toAppPath("/submit-task")}>
+          <div className="submit-preview-heading">
+            <div>
+              <p className="section-index">Benchmark registry</p>
+              <h2>Have a task that can break the loop?</h2>
+            </div>
+            <span className="inline-destination">
+              Submit your task <span aria-hidden="true">↗</span>
+            </span>
+          </div>
+          <p>
+            Send us the task package, tests, and oracle notes through the
+            existing review flow. Strong submissions become new pressure points
+            for loop engineering.
+          </p>
         </a>
 
         <section className="protocol-section" aria-labelledby="protocol-title">

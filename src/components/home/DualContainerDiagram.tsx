@@ -5,15 +5,15 @@ type Stage = "edit" | "snapshot" | "verify";
 const stageCopy: Record<Stage, { label: string; detail: string }> = {
   edit: {
     label: "Agent workspace",
-    detail: "Container A is the sole write target; the coding loop keeps working while the runtime observes change.",
+    detail: "Container A is the only writable workspace; the loop keeps moving as changes accumulate.",
   },
   snapshot: {
-    label: "Monotonic snapshot queue",
-    detail: "Qualifying diffs are frozen at real change points and sent to the isolated tester.",
+    label: "Snapshot flow",
+    detail: "A checkpoint crosses the loop at real change points while the agent keeps editing.",
   },
   verify: {
-    label: "Evaluator-side verification",
-    detail: "Released tests and prior obligations run in Container B; checkpoint state stays with the evaluator.",
+    label: "Isolated verification",
+    detail: "Container B runs tests separately and keeps evaluator state private.",
   },
 };
 
@@ -27,6 +27,20 @@ const backgroundTerms = [
   { text: "ready_frontier → symbols", className: "term-g" },
   { text: "observation_history.jsonl", className: "term-h" },
 ];
+
+const desktopCirclePath =
+  "M500 142 C548.6 142 588 181.4 588 230 C588 278.6 548.6 318 500 318 C451.4 318 412 278.6 412 230 C412 181.4 451.4 142 500 142 Z";
+const desktopInfinityPath =
+  "M500 230 C500 145 320 145 320 230 C320 315 500 315 500 230 C500 145 680 145 680 230 C680 315 500 315 500 230 Z";
+const desktopParticlePath =
+  "M800 230 C752 230 716 230 680 230 C680 145 500 145 500 230 C500 315 320 315 320 230 C320 145 500 145 500 230 C500 315 680 315 680 230 C716 230 752 230 800 230";
+
+const mobileCirclePath =
+  "M180 306 C204.3 306 224 325.7 224 350 C224 374.3 204.3 394 180 394 C155.7 394 136 374.3 136 350 C136 325.7 155.7 306 180 306 Z";
+const mobileInfinityPath =
+  "M180 350 C180 296 70 296 70 350 C70 404 180 404 180 350 C180 296 290 296 290 350 C290 404 180 404 180 350 Z";
+const mobileParticlePath =
+  "M180 552 C180 500 290 454 290 350 C290 296 180 296 180 350 C180 404 70 404 70 350 C70 296 180 296 180 350 C180 404 290 404 290 350 C290 452 180 500 180 552";
 
 function DockerMark() {
   return (
@@ -60,70 +74,65 @@ export function DualContainerDiagram() {
       <div className="docker-loop-scene">
         <svg className="loop-routes loop-routes-desktop" viewBox="0 0 1000 460" aria-hidden="true">
           <defs>
-            <linearGradient id="route-forward" x1="0" x2="1">
-              <stop offset="0" stopColor="#3b75d6" stopOpacity=".35" />
-              <stop offset=".55" stopColor="#73b7ff" />
-              <stop offset="1" stopColor="#4d8dff" stopOpacity=".7" />
+            <linearGradient id="loop-fluid-desktop" x1="0" x2="1">
+              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".45" />
+              <stop offset=".5" stopColor="#b7d8ff" />
+              <stop offset="1" stopColor="#63c7cc" stopOpacity=".72" />
             </linearGradient>
-            <linearGradient id="route-cycle" x1="1" x2="0">
-              <stop offset="0" stopColor="#66d0d2" stopOpacity=".55" />
-              <stop offset=".55" stopColor="#668fcf" stopOpacity=".7" />
-              <stop offset="1" stopColor="#4d8dff" stopOpacity=".3" />
+            <linearGradient id="loop-connector-desktop" x1="0" x2="1">
+              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".12" />
+              <stop offset=".52" stopColor="#90bcff" stopOpacity=".5" />
+              <stop offset="1" stopColor="#63c7cc" stopOpacity=".18" />
             </linearGradient>
-            <marker id="arrow-forward" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 10 5 0 10Z" fill="#72b5ff" />
-            </marker>
-            <marker id="arrow-cycle" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 10 5 0 10Z" fill="#67b6c9" />
-            </marker>
           </defs>
-          <path className="loop-route route-forward" d="M260 220 C330 42 670 42 740 220" markerEnd="url(#arrow-forward)" />
-          <path className="loop-route route-cycle" d="M740 238 C662 420 338 420 260 238" markerEnd="url(#arrow-cycle)" />
-          <circle className="route-packet packet-forward" r="5">
-            <animateMotion dur="3.4s" path="M260 220 C330 42 670 42 740 220" repeatCount="indefinite" />
-          </circle>
-          <circle className="route-packet packet-cycle" r="4.5">
-            <animateMotion dur="4.2s" path="M740 238 C662 420 338 420 260 238" repeatCount="indefinite" />
-          </circle>
+          <path className="loop-connector loop-connector-left" d="M250 230 C284 230 300 230 320 230" />
+          <path className="loop-connector loop-connector-right" d="M750 230 C716 230 700 230 680 230" />
+          <path className="loop-core-shadow" d={desktopInfinityPath} />
+          <path className="loop-bend-orbit" d={desktopCirclePath} />
+          <path className="loop-core-shape" d={desktopInfinityPath} />
+          <path className="loop-core-highlight" d={desktopInfinityPath} />
+          <g className="loop-particle">
+            <circle className="loop-particle-glow" r="19" />
+            <circle className="loop-particle-core" r="6.4" />
+            <animateMotion dur="8s" path={desktopParticlePath} repeatCount="indefinite" />
+          </g>
         </svg>
 
         <svg className="loop-routes loop-routes-mobile" viewBox="0 0 360 700" aria-hidden="true">
           <defs>
-            <linearGradient id="route-forward-mobile" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#3b75d6" stopOpacity=".35" />
-              <stop offset=".55" stopColor="#73b7ff" />
-              <stop offset="1" stopColor="#4d8dff" stopOpacity=".7" />
+            <linearGradient id="loop-fluid-mobile" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".5" />
+              <stop offset=".5" stopColor="#b7d8ff" />
+              <stop offset="1" stopColor="#63c7cc" stopOpacity=".72" />
             </linearGradient>
-            <linearGradient id="route-cycle-mobile" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0" stopColor="#66d0d2" stopOpacity=".55" />
-              <stop offset=".55" stopColor="#668fcf" stopOpacity=".7" />
-              <stop offset="1" stopColor="#4d8dff" stopOpacity=".3" />
+            <linearGradient id="loop-connector-mobile" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#5e8fe2" stopOpacity=".18" />
+              <stop offset=".48" stopColor="#90bcff" stopOpacity=".5" />
+              <stop offset="1" stopColor="#63c7cc" stopOpacity=".18" />
             </linearGradient>
-            <marker id="arrow-forward-mobile" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 10 5 0 10Z" fill="#72b5ff" />
-            </marker>
-            <marker id="arrow-cycle-mobile" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-              <path d="M0 0 10 5 0 10Z" fill="#67b6c9" />
-            </marker>
           </defs>
-          <path className="loop-route route-forward" d="M218 150 C334 218 334 482 218 550" markerEnd="url(#arrow-forward-mobile)" />
-          <path className="loop-route route-cycle" d="M142 550 C26 482 26 218 142 150" markerEnd="url(#arrow-cycle-mobile)" />
-          <circle className="route-packet packet-forward" r="5">
-            <animateMotion dur="3.4s" path="M218 150 C334 218 334 482 218 550" repeatCount="indefinite" />
-          </circle>
-          <circle className="route-packet packet-cycle" r="4.5">
-            <animateMotion dur="4.2s" path="M142 550 C26 482 26 218 142 150" repeatCount="indefinite" />
-          </circle>
+          <path className="loop-connector loop-connector-left" d="M180 152 C180 220 180 260 180 296" />
+          <path className="loop-connector loop-connector-right" d="M180 548 C180 480 180 438 180 404" />
+          <path className="loop-core-shadow" d={mobileInfinityPath} />
+          <path className="loop-bend-orbit" d={mobileCirclePath} />
+          <path className="loop-core-shape" d={mobileInfinityPath} />
+          <path className="loop-core-highlight" d={mobileInfinityPath} />
+          <g className="loop-particle">
+            <circle className="loop-particle-glow" r="17" />
+            <circle className="loop-particle-core" r="5.8" />
+            <animateMotion dur="8s" path={mobileParticlePath} repeatCount="indefinite" />
+          </g>
         </svg>
 
-        <span className="route-label route-label-forward">
-          <span className="route-copy-desktop">monotonic snapshot · diff +128 −14</span>
-          <span className="route-copy-mobile">snapshot · +128 −14</span>
-        </span>
-        <span className="route-label route-label-cycle">
-          <span className="route-copy-desktop">runtime clock · no result returned</span>
-          <span className="route-copy-mobile">runtime clock · no feedback</span>
-        </span>
+        <button
+          className="infinity-loop-control"
+          type="button"
+          aria-label="Inspect snapshot flow"
+          aria-pressed={activeStage === "snapshot"}
+          onClick={() => setActiveStage("snapshot")}
+          onMouseEnter={() => setActiveStage("snapshot")}
+          onFocus={() => setActiveStage("snapshot")}
+        />
 
         <button
           className="docker-station docker-station-agent"
@@ -142,21 +151,6 @@ export function DualContainerDiagram() {
             <code><i>+</i> tests/test_parser.py</code>
             <code className="station-live">● loop keeps editing</code>
           </span>
-        </button>
-
-        <button
-          className="snapshot-node"
-          type="button"
-          aria-label="Inspect monotonic snapshot queue"
-          aria-pressed={activeStage === "snapshot"}
-          onClick={() => setActiveStage("snapshot")}
-          onMouseEnter={() => setActiveStage("snapshot")}
-          onFocus={() => setActiveStage("snapshot")}
-        >
-          <i aria-hidden="true" />
-          <i aria-hidden="true" />
-          <span>snapshot_042</span>
-          <code>queued</code>
         </button>
 
         <button
@@ -181,7 +175,7 @@ export function DualContainerDiagram() {
 
         <div className="runtime-ledger">
           <LockMark />
-          <span><strong>Evaluator-only state</strong><small>no staged score feedback</small></span>
+          <span><strong>Sealed evaluator state</strong><small>no score feedback</small></span>
         </div>
       </div>
 
