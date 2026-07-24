@@ -2814,6 +2814,7 @@ tbody tr:hover {
 .loop-connector,
 .loop-core-shadow,
 .loop-core-shape,
+.loop-core-flow,
 .loop-core-highlight {
   fill: none;
   stroke-linecap: round;
@@ -2838,14 +2839,25 @@ tbody tr:hover {
 .loop-core-shape {
   stroke: #9cc6ff;
   stroke-width: 4.6;
+  animation: loop-breathe 7.2s ease-in-out infinite;
   filter:
     drop-shadow(0 0 9px rgba(101, 172, 255, 0.4))
     drop-shadow(0 0 22px rgba(87, 204, 210, 0.18));
 }
 
+.loop-core-flow {
+  stroke: rgba(233, 248, 255, 0.86);
+  stroke-width: 1.65;
+  stroke-dasharray: 4 22 12 34;
+  opacity: 0.72;
+  animation: loop-flow 7.2s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(148, 218, 255, 0.48));
+}
+
 .loop-core-highlight {
   stroke: rgba(238, 247, 255, 0.72);
   stroke-width: 1.1;
+  animation: loop-highlight 7.2s ease-in-out infinite;
   opacity: 0.55;
 }
 
@@ -2877,6 +2889,52 @@ tbody tr:hover {
   fill: #eef8ff;
   stroke: #76d7dc;
   stroke-width: 1.35;
+}
+
+.loop-particle-trail {
+  opacity: 0.34;
+}
+
+.loop-particle-trail-soft {
+  opacity: 0.18;
+}
+
+.loop-particle-trail-dot {
+  fill: #9cebf0;
+}
+
+@keyframes loop-flow {
+  to {
+    stroke-dashoffset: -72;
+  }
+}
+
+@keyframes loop-breathe {
+  0%,
+  100% {
+    stroke-width: 4.35;
+  }
+
+  24%,
+  72% {
+    stroke-width: 5;
+  }
+
+  48% {
+    stroke-width: 4.55;
+  }
+}
+
+@keyframes loop-highlight {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+
+  30%,
+  72% {
+    opacity: 0.74;
+  }
 }
 
 .infinity-loop-control {
@@ -4154,6 +4212,7 @@ tbody tr:hover {
   .loop-connector,
   .loop-core-shadow,
   .loop-core-shape,
+  .loop-core-flow,
   .loop-core-highlight,
   .loop-particle-glow,
   .station-tests i.active,

@@ -55,6 +55,48 @@ function loopIconTransform(geo: LoopGeometry) {
   return `translate(${geo.cx} ${geo.cy}) scale(${scaleX} ${scaleY}) translate(-21 -16)`;
 }
 
+const LOOP_PULL_RIGHT =
+  "M21 16 C19.8 8.2, 3.4 8.9, 3.4 15.6 C3.4 23.7, 19.5 24.6, 21 16 C23.2 6.6, 40.2 7, 39.4 16.3 C38.8 25.3, 22.8 24.9, 21 16 Z";
+const LOOP_PULL_LEFT =
+  "M21 16 C18.6 6.8, 2.4 7.7, 2.8 16.3 C3.2 25.4, 19.2 25.3, 21 16 C22 7.9, 38.5 8.7, 38.9 16.1 C39.3 23.4, 22.1 23.7, 21 16 Z";
+const LOOP_DRIFT =
+  "M21 16 C20.4 6.3, 4.1 6.9, 3.6 15.4 C3.1 24.5, 20.7 26.3, 21 16 C21.6 7.2, 38 7.6, 38.7 16.6 C39.2 24.8, 21.7 25.1, 21 16 Z";
+const LOOP_SQUEEZE =
+  "M21 16 C21.8 8.9, 5.4 8.6, 4.3 15.8 C3.4 23.3, 19.8 23.8, 21 16 C22.2 8.2, 36.7 7.7, 37.8 16.1 C38.6 24.1, 20.1 23.5, 21 16 Z";
+
+const LOOP_PATH_VALUES = [
+  INFINITY_MARK_PATH,
+  LOOP_PULL_RIGHT,
+  LOOP_DRIFT,
+  INFINITY_MARK_PATH,
+  LOOP_PULL_LEFT,
+  LOOP_SQUEEZE,
+  INFINITY_MARK_PATH,
+].join(";");
+const LOOP_KEY_TIMES = "0;0.15;0.31;0.48;0.65;0.82;1";
+const LOOP_KEY_SPLINES = [
+  "0.42 0 0.58 1",
+  "0.42 0 0.58 1",
+  "0.42 0 0.58 1",
+  "0.42 0 0.58 1",
+  "0.42 0 0.58 1",
+  "0.42 0 0.58 1",
+].join(";");
+
+function LoopPathAnimation() {
+  return (
+    <animate
+      attributeName="d"
+      dur="7.2s"
+      repeatCount="indefinite"
+      values={LOOP_PATH_VALUES}
+      keyTimes={LOOP_KEY_TIMES}
+      calcMode="spline"
+      keySplines={LOOP_KEY_SPLINES}
+    />
+  );
+}
+
 
 function DockerMark() {
   return (
@@ -88,13 +130,35 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       <path className="loop-connector loop-connector-left" d={leftConnector} />
       <path className="loop-connector loop-connector-right" d={rightConnector} />
       <g transform={iconTransform}>
-        <path className="loop-core-shadow" d={INFINITY_MARK_PATH} />
-        <path className="loop-core-shape" d={INFINITY_MARK_PATH} />
-        <path className="loop-core-highlight" d={INFINITY_MARK_PATH} />
+        <path className="loop-core-shadow" d={INFINITY_MARK_PATH}>
+          <LoopPathAnimation />
+        </path>
+        <path className="loop-core-shape" d={INFINITY_MARK_PATH}>
+          <LoopPathAnimation />
+        </path>
+        <path className="loop-core-flow" d={INFINITY_MARK_PATH}>
+          <LoopPathAnimation />
+        </path>
+        <path className="loop-core-highlight" d={INFINITY_MARK_PATH}>
+          <LoopPathAnimation />
+        </path>
+        <g className="loop-particle loop-particle-trail">
+          <animateMotion dur="7.2s" begin="-0.22s" repeatCount="indefinite" path={INFINITY_MARK_PATH} />
+          <circle className="loop-particle-trail-dot" r={geo === desktopGeo ? 0.62 : 0.52} />
+        </g>
+        <g className="loop-particle loop-particle-trail loop-particle-trail-soft">
+          <animateMotion dur="7.2s" begin="-0.44s" repeatCount="indefinite" path={INFINITY_MARK_PATH} />
+          <circle className="loop-particle-trail-dot" r={geo === desktopGeo ? 0.46 : 0.4} />
+        </g>
         <g className="loop-particle">
           <animateMotion dur="7.2s" repeatCount="indefinite" path={INFINITY_MARK_PATH} />
-          <circle className="loop-particle-glow" r={geo === desktopGeo ? 1.6 : 1.45} />
-          <circle className="loop-particle-core" r={geo === desktopGeo ? 0.58 : 0.52} />
+          <circle className="loop-particle-glow" r={geo === desktopGeo ? 1.7 : 1.45}>
+            <animate attributeName="opacity" dur="7.2s" repeatCount="indefinite" values="0.16;0.36;0.2;0.42;0.18" keyTimes="0;0.22;0.5;0.72;1" />
+            <animate attributeName="r" dur="7.2s" repeatCount="indefinite" values="1.25;1.9;1.45;2.05;1.25" keyTimes="0;0.22;0.5;0.72;1" />
+          </circle>
+          <circle className="loop-particle-core" r={geo === desktopGeo ? 0.54 : 0.5}>
+            <animate attributeName="r" dur="7.2s" repeatCount="indefinite" values="0.48;0.64;0.5;0.68;0.48" keyTimes="0;0.22;0.5;0.72;1" />
+          </circle>
         </g>
       </g>
     </svg>
