@@ -38,16 +38,19 @@ type LoopGeometry = {
   reach: number; // half-width of each infinity lobe
   height: number; // vertical extent of each lobe
   points: number; // samples per closed path
-  launch: { x: number; y: number }; // where the ball is fired from (the tester Docker)
+  fromDock: { x: number; y: number }; // right Docker (ball starts here)
+  toDock: { x: number; y: number }; // left Docker (ball ends here)
 };
 
 const desktopGeo: LoopGeometry = {
   cx: 500, cy: 230, radius: 96, reach: 182, height: 92, points: 160,
-  launch: { x: 812, y: 230 },
+  fromDock: { x: 812, y: 230 },
+  toDock: { x: 188, y: 230 },
 };
 const mobileGeo: LoopGeometry = {
   cx: 180, cy: 350, radius: 62, reach: 118, height: 60, points: 160,
-  launch: { x: 180, y: 560 },
+  fromDock: { x: 180, y: 560 },
+  toDock: { x: 180, y: 140 },
 };
 
 // Point on the rest circle for parameter t in [0, 2pi).
@@ -88,10 +91,11 @@ function LockMark() {
   );
 }
 
-// A ball is fired from the right Docker station, flies into the loop, and its
-// impact on the right edge is what twists the whole curve from circle into the
-// infinity sign; then the curve springs back and the ball returns. Eased and
-// looping, calm like the header logo.
+// A ball travels from the right Docker station through the loop to the left
+// Docker (then back). The curve deforms in step with the ball's position: it is
+// a circle at rest, and as the ball pushes through it twists into the infinity
+// sign, peaking as the ball crosses center, easing back as it exits. The line
+// reacts to actual contact, not a detached timer.
 function useLoopSimulation(geo: LoopGeometry, active: boolean) {
   const shapeRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
@@ -109,36 +113,36 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
     const easeInOut = (u: number) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
-    const easeOut = (u: number) => 1 - (1 - u) ** 3;
+    const clamp01 = (u: number) => (u < 0 ? 0 : u > 1 ? 1 : u);
     const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 
-    // The point on the curve the ball strikes: the right edge, at the waist line.
-    const strike = { x: geo.cx + geo.radius + 4, y: geo.cy };
+    // The loop spans this far to each side along the ball's travel axis. The ball
+    // is "in contact" with the curve while it is inside this band; the morph is
+    // driven by how deep into the band the ball is, so the line reacts to the
+    // ball's actual position rather than a detached timer.
+    const contactSpan = geo.reach + 20;
+    const axis = geo.fromDock.x !== geo.toDock.x ? "x" : "y";
+    const center = axis === "x" ? geo.cx : geo.cy;
 
-    // Morph 0 (circle) -> 1 (infinity), driven by the impact, then released.
-    function morphAt(p: number) {
-      if (p < 0.3) return 0; // ball still incoming
-      if (p < 0.42) return easeOut((p - 0.3) / 0.12); // impact twists into infinity
-      if (p < 0.56) return 1; // dwell at infinity
-      if (p < 0.74) return 1 - easeInOut((p - 0.56) / 0.18); // untwist back to circle
-      return 0; // at rest
+    // Ball travels right Docker -> left Docker, then back. One full round trip
+    // per cycle so both stations take turns firing.
+    function ballAt(p: number) {
+      const a = geo.fromDock;
+      const b = geo.toDock;
+      if (p < 0.5) {
+        const u = easeInOut(p / 0.5); // from -> to
+        return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) };
+      }
+      const u = easeInOut((p - 0.5) / 0.5); // to -> from
+      return { x: lerp(b.x, a.x, u), y: lerp(b.y, a.y, u) };
     }
 
-    // Ball position: fly in, snap at impact, recoil and return to the launcher.
-    function ballAt(p: number) {
-      const L = geo.launch;
-      if (p < 0.3) {
-        const u = easeInOut(p / 0.3); // launch -> strike
-        return { x: lerp(L.x, strike.x, u), y: lerp(L.y, strike.y, u) };
-      }
-      if (p < 0.42) {
-        return strike; // contact
-      }
-      if (p < 0.74) {
-        const u = easeInOut((p - 0.42) / 0.32); // strike -> back to launcher
-        return { x: lerp(strike.x, L.x, u), y: lerp(strike.y, L.y, u) };
-      }
-      return L; // waiting at the launcher
+    // Morph tracks the ball: 0 while outside the loop, rising as it pushes in,
+    // full infinity as it passes dead center, easing back as it exits.
+    function morphFor(ball: { x: number; y: number }) {
+      const pos = axis === "x" ? ball.x : ball.y;
+      const depth = clamp01(1 - Math.abs(pos - center) / contactSpan);
+      return easeInOut(depth);
     }
 
     function buildPath(m: number) {
@@ -151,7 +155,8 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
       return `${d}Z`;
     }
 
-    function render(m: number, ball: { x: number; y: number }) {
+    function render(ball: { x: number; y: number }) {
+      const m = morphFor(ball);
       const path = buildPath(m);
       shapeRef.current?.setAttribute("d", path);
       highlightRef.current?.setAttribute("d", path);
@@ -163,13 +168,15 @@ function useLoopSimulation(geo: LoopGeometry, active: boolean) {
       if (!start) start = now;
       const elapsed = (now - start) / 1000;
       const p = (elapsed / cycle) % 1;
-      render(morphAt(p), ballAt(p));
+      render(ballAt(p));
       raf = window.requestAnimationFrame(frame);
     }
 
-    render(reduce ? 1 : 0, reduce ? { x: geo.cx + geo.radius + 4, y: geo.cy } : geo.launch);
-    if (!reduce && active) {
-      raf = window.requestAnimationFrame(frame);
+    if (reduce) {
+      render({ x: geo.cx, y: geo.cy });
+    } else {
+      render(geo.fromDock);
+      if (active) raf = window.requestAnimationFrame(frame);
     }
     return () => window.cancelAnimationFrame(raf);
   }, [geo, active]);
