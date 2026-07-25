@@ -1,110 +1,79 @@
 # LoopsBench
 
-Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**. Vite + React + TypeScript, single-page site (home, run guide and replay, leaderboard, about) deployed to GitHub Pages.
+Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**.
+This repository contains the static Vite + React + TypeScript website deployed to GitHub Pages.
 
-This repo now contains two pieces:
+## What lives here
 
-- the static Vite + React + TypeScript site in `src/`
-- the task-submission backend in `submission_service/`
+- the public site in `src/`
+- the static benchmark snapshot in `public/benchmarks-data/`
+- the GitHub-native `Submit Task` contribution guide page
 
-## Local frontend development
+This repository does **not** contain the task-submission backend anymore.
+Task contribution happens in `https://github.com/microsoft/Loopsbench` through:
+
+- the Task Proposal issue form
+- the contribution guide
+- the task template
+- benchmark task pull requests
+
+## Local development
 
 ```bash
 npm install
+npm run generate:contribution
 npm run generate:benchmarks
 npm run dev
 ```
 
-If you want the submit-task page to talk to a local backend, set `VITE_SUBMISSION_API_BASE=http://localhost:8000`.
-`npm run generate:benchmarks` rebuilds the static `public/benchmarks-data/` snapshot from the sibling `../tasks/` directory in the main LoopsBench workspace.
-
-## Task submission backend
-
-The backend API and worker live in `submission_service/`. It powers the web flow that accepts a task bundle, runs validation and Oracle, and opens a PR from the submitter's own GitHub account after Oracle passes.
-
-Quick local startup:
+If you want to override the GitHub links used by the `Submit Task` page locally, set:
 
 ```bash
-python3 -m venv .venv-submission
-. .venv-submission/bin/activate
-pip install -e ./submission_service[dev,runner]
-
-export SUBMISSION_PROCESS_INLINE=true
-export SUBMISSION_API_ALLOWED_ORIGINS=http://localhost:5173
-export SUBMISSION_GITHUB_PR_DRY_RUN=true
-python -m uvicorn submission_service.app.main:app --reload --host 0.0.0.0 --port 8000
+VITE_TASK_PROPOSAL_URL=...
+VITE_CONTRIBUTING_GUIDE_URL=...
+VITE_TASK_TEMPLATE_URL=...
+VITE_EXAMPLE_TASK_URL=...
 ```
 
-Important runtime note:
+`npm run generate:benchmarks` rebuilds `public/benchmarks-data/` from the sibling `../tasks/` directory in the main LoopsBench workspace.
+`npm run generate:contribution` refreshes the checked-in task-structure example from `../tasks/_template/`.
 
-- GitHub Pages only serves the frontend. The backend must run as a separate process on a VM, container, or bare-metal host.
-- Oracle and `loopsbench tasks validate` need a Python interpreter with LoopsBench runtime dependencies available. If the backend virtualenv does not have those dependencies, point `SUBMISSION_PYTHON_EXECUTABLE` at a different interpreter that does.
-- If the upstream `microsoft/Loopsbench` repository is still private, the GitHub OAuth app should request `repo,read:user,user:email`, and the contributor must already have access to that private repo. Once the upstream is public, the scope can drop back to `public_repo,read:user,user:email`.
+The contribution generator also supports:
 
-See `submission_service/README.md` for the backend environment variables and worker mode.
+- `LOOPSBENCH_CONTRIBUTION_TEMPLATE_ROOT`
+- `LOOPSBENCH_CONTRIBUTION_OUTPUT_PATH`
 
-## Single-machine deployment
-
-This repo now includes host-side ops scripts in `ops/` for a practical single-machine deployment:
+## Tests
 
 ```bash
-cp .env.submission.example .env.submission
-# edit .env.submission
-
-ops/setup_submission_env.sh
-ops/sync_local_target_repo.sh
-ops/install_submission_systemd.sh
-ops/status_submission_stack.sh
+npm test
+npm run build
 ```
 
-The `install_submission_systemd.sh` script installs and enables user-level `systemd` services with automatic restart for the API and worker. After that, `ops/start_submission_stack.sh`, `ops/stop_submission_stack.sh`, and `ops/status_submission_stack.sh` operate through `systemd`.
+The smoke test verifies that the `Submit Task` page stays GitHub-native:
 
-Optional HTTPS public tunnel for the API:
+- proposal link is present
+- contribution guide link is present
+- Pull Request flow is mentioned
+- Discord is absent
+- file-upload controls are absent
 
-```bash
-ops/start_submission_tunnel.sh
-```
-
-Then copy the `https://...trycloudflare.com` URL from `runtime/logs/submission-tunnel.log` and use it as `VITE_SUBMISSION_API_BASE` in your frontend build.
-
-## GitHub Pages deployment
+## GitHub Pages
 
 This repo is configured for GitHub Pages through GitHub Actions.
 
-### How it works
-
-- If the repository name is `your-name.github.io`, the app is built at the site root.
-- If the repository name is anything else, the Vite `base` path is set automatically to `/<repo-name>/`.
-- A `404.html` fallback is generated during build so direct visits to routes like `/submit` still work on GitHub Pages.
-
 ### Publish steps
 
-1. Create a GitHub repository.
-2. Add the remote:
+1. Push to `main`.
+2. In GitHub, open `Settings -> Pages`.
+3. Under `Build and deployment`, choose `GitHub Actions`.
+4. Wait for the `Deploy Pages` workflow to finish.
 
-```bash
-git remote add origin https://github.com/<your-name>/<repo-name>.git
-```
+### Optional build-time link configuration
 
-3. Commit and push:
+The GitHub-native contribution page can optionally receive:
 
-```bash
-git add .
-git commit -m "Add LoopsBench site and submission backend"
-git push -u origin main
-```
-
-4. In GitHub, open `Settings -> Pages`.
-5. Under `Build and deployment`, choose `GitHub Actions`.
-6. Wait for the `Deploy Pages` workflow to finish.
-
-For the submit-task feature to work on GitHub Pages, the repository build should receive a real API base URL through the repository variable `VITE_SUBMISSION_API_BASE`. If that variable is unset, the production site on `loopsbench.ai` / `www.loopsbench.ai` falls back at runtime to `https://api.loopsbench.ai`.
-
-### Result URL
-
-- User or org site repo: `https://<your-name>.github.io/`
-- Project repo: `https://<your-name>.github.io/<repo-name>/`
-
-### Optional custom base path
-
-If you need to override the detected base path, set `VITE_BASE_PATH` when building.
+- `VITE_TASK_PROPOSAL_URL`
+- `VITE_CONTRIBUTING_GUIDE_URL`
+- `VITE_TASK_TEMPLATE_URL`
+- `VITE_EXAMPLE_TASK_URL`

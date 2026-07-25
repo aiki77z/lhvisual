@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite",
     "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx src/__tests__/submit-task.smoke.tsx",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "generate:contribution": "python3 scripts/generate_contribution_data.py",
     "generate:benchmarks": "python3 scripts/generate_benchmarks_data.py"
   },
   "dependencies": {
@@ -19,6 +22,7 @@
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "tsx": "^4.20.6",
     "typescript": "^5.8.0",
     "vite": "^7.0.0"
   }
