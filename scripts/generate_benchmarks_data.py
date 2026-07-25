@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections import Counter, defaultdict, deque
 from pathlib import Path
@@ -10,10 +11,26 @@ from statistics import median
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TASKS_ROOT = REPO_ROOT.parent / "tasks"
-OUTPUT_ROOT = REPO_ROOT / "public" / "benchmarks-data"
-TASKS_OUTPUT_ROOT = OUTPUT_ROOT / "tasks"
-REPO_URL = "https://github.com/microsoft/Loopsbench"
+DEFAULT_REPO_URL = "https://github.com/microsoft/Loopsbench"
+
+
+def _tasks_root() -> Path:
+    return Path(
+        os.environ.get("LOOPSBENCH_BENCHMARK_TASKS_ROOT", REPO_ROOT.parent / "tasks")
+    ).resolve()
+
+
+def _output_root() -> Path:
+    return Path(
+        os.environ.get(
+            "LOOPSBENCH_BENCHMARK_OUTPUT_ROOT", REPO_ROOT / "public" / "benchmarks-data"
+        )
+    ).resolve()
+
+
+def _repo_url() -> str:
+    value = os.environ.get("LOOPSBENCH_BENCHMARK_REPO_URL", DEFAULT_REPO_URL).strip()
+    return value or DEFAULT_REPO_URL
 
 
 def _normalize_text(value: str) -> str:
@@ -156,7 +173,7 @@ def _compute_unit_layer_stats(unit_dag: dict) -> tuple[list[dict], int]:
     return [layers[key] for key in sorted(layers)], tested_units
 
 
-def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
+def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
     task_yaml = yaml.safe_load((task_dir / "task.yaml").read_text(encoding="utf-8"))
     module_dag = yaml.safe_load((task_dir / "module_dag.yaml").read_text(encoding="utf-8"))
     unit_dag = json.loads((task_dir / "unit_dag.json").read_text(encoding="utf-8"))
@@ -216,7 +233,7 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
         "tags": tags,
         "authorName": _safe_author_name(task_yaml),
         "authorEmail": _safe_author_email(task_yaml),
-        "repoUrl": f"{REPO_URL}/tree/main/tasks/{task_dir.name}",
+        "repoUrl": f"{repo_url}/tree/main/tasks/{task_dir.name}",
         "taskPath": f"tasks/{task_dir.name}",
         "parserName": str(task_yaml.get("parser_name") or "unknown"),
         "maxAgentTimeoutSec": int(task_yaml.get("max_agent_timeout_sec") or 0),
@@ -285,12 +302,16 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
 
 
 def main() -> None:
-    tasks_root = DEFAULT_TASKS_ROOT
+    tasks_root = _tasks_root()
+    output_root = _output_root()
+    tasks_output_root = output_root / "tasks"
+    repo_url = _repo_url()
+
     if not tasks_root.exists():
         raise SystemExit(f"Tasks root not found: {tasks_root}")
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    TASKS_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
+    tasks_output_root.mkdir(parents=True, exist_ok=True)
 
     task_dirs = sorted(path for path in tasks_root.iterdir() if path.is_dir() and path.name.startswith("task_"))
 
@@ -304,7 +325,7 @@ def main() -> None:
     module_layers: list[int] = []
 
     for task_dir in task_dirs:
-        summary, detail = _build_task_payload(task_dir)
+        summary, detail = _build_task_payload(task_dir, repo_url=repo_url)
         summaries.append(summary)
         category_counts[summary["category"]] += 1
         difficulty_counts[summary["difficulty"]] += 1
@@ -314,7 +335,7 @@ def main() -> None:
         unit_layers.append(summary["unitLayerCount"])
         module_layers.append(summary["moduleLayerCount"])
 
-        (TASKS_OUTPUT_ROOT / f"{task_dir.name}.json").write_text(
+        (tasks_output_root / f"{task_dir.name}.json").write_text(
             json.dumps(detail, ensure_ascii=False, separators=(",", ":")),
             encoding="utf-8",
         )
@@ -351,12 +372,12 @@ def main() -> None:
         "tasks": summaries,
     }
 
-    (OUTPUT_ROOT / "index.json").write_text(
+    (output_root / "index.json").write_text(
         json.dumps(index_payload, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
 
-    print(f"Wrote {len(summaries)} task summaries to {OUTPUT_ROOT}")
+    print(f"Wrote {len(summaries)} task summaries to {output_root}")
 
 
 if __name__ == "__main__":
