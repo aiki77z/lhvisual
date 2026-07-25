@@ -7,17 +7,21 @@ import type { BenchmarkTaskSummary, BenchmarksIndexPayload } from "../../types/b
 type FilterState = {
   query: string;
   difficulty: string;
+  shouldDefaultDifficulty: boolean;
 };
+
+type PersistedFilters = Pick<FilterState, "query" | "difficulty">;
 
 function readFiltersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search);
   return {
     query: params.get("q") ?? "",
     difficulty: params.get("difficulty") ?? "",
+    shouldDefaultDifficulty: !params.has("difficulty"),
   };
 }
 
-function writeFiltersToUrl(filters: FilterState) {
+function writeFiltersToUrl(filters: PersistedFilters) {
   const params = new URLSearchParams();
   if (filters.query.trim()) {
     params.set("q", filters.query.trim());
@@ -51,7 +55,7 @@ function BenchmarkStats({ payload, filteredCount }: { payload: BenchmarksIndexPa
       </header>
       <div className="registry-terminal-lines">
         <p>
-          <span>$</span> lhb tasks list --dataset LoopsBench
+          <span>$</span> loopsbench tasks list --tasks-dir tasks
         </p>
         <p>
           <span>ok</span> {payload.benchmark.description}
@@ -117,9 +121,7 @@ function TaskCard({ task }: { task: BenchmarkTaskSummary }) {
       {tags ? <p className="registry-card-tags">{tags}</p> : null}
 
       <div className="registry-card-foot">
-        <small>
-          {task.moduleNodeCount.toLocaleString()} modules · {task.unitCount.toLocaleString()} units
-        </small>
+        <small>{task.unitCount.toLocaleString()} units</small>
       </div>
     </article>
   );
@@ -132,6 +134,7 @@ export function BenchmarksPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState(initialFilters.query);
   const [difficulty, setDifficulty] = useState(initialFilters.difficulty);
+  const [shouldDefaultDifficulty, setShouldDefaultDifficulty] = useState(initialFilters.shouldDefaultDifficulty);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
@@ -149,6 +152,17 @@ export function BenchmarksPage() {
   useEffect(() => {
     writeFiltersToUrl({ query, difficulty });
   }, [query, difficulty]);
+
+  useEffect(() => {
+    if (!payload || !shouldDefaultDifficulty) {
+      return;
+    }
+
+    if (payload.filters.difficulties.some((option) => option.value === "easy")) {
+      setDifficulty("easy");
+    }
+    setShouldDefaultDifficulty(false);
+  }, [payload, shouldDefaultDifficulty]);
 
   const filteredTasks = (payload?.tasks ?? [])
     .filter((task) => {
