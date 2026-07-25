@@ -73,17 +73,36 @@ function TaskCard({ task }: { task: BenchmarkTaskSummary }) {
   const taskHref = toAppPath(`/benchmarks/${encodeURIComponent(task.id)}`);
   const preview = toPlainDisplayText(task.instructionPreview || task.summary);
   const tags = task.tags.slice(0, 4).join(", ");
+  const openTask = () => {
+    window.location.assign(taskHref);
+  };
 
   return (
-    <article className="registry-card">
+    <article
+      className="registry-card registry-card-clickable"
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${task.title}`}
+      onClick={openTask}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openTask();
+        }
+      }}
+    >
       <div className="registry-card-head">
         <div className="registry-card-titleblock">
-          <p className="registry-card-task-id">{task.taskName}</p>
-          <h2 className="registry-card-title">
-            <a href={taskHref}>{task.title}</a>
-          </h2>
+          <h2 className="registry-card-title">{task.title}</h2>
         </div>
-        <a className="registry-card-link" href={task.repoUrl} target="_blank" rel="noreferrer">
+        <a
+          className="registry-card-link"
+          href={task.repoUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
           GitHub
         </a>
       </div>
@@ -98,7 +117,6 @@ function TaskCard({ task }: { task: BenchmarkTaskSummary }) {
       {tags ? <p className="registry-card-tags">{tags}</p> : null}
 
       <div className="registry-card-foot">
-        <span>Created by {task.authorName}</span>
         <small>
           {task.moduleNodeCount.toLocaleString()} modules · {task.unitCount.toLocaleString()} units
         </small>
@@ -160,7 +178,7 @@ export function BenchmarksPage() {
 
       return true;
     })
-    .sort((left, right) => left.taskName.localeCompare(right.taskName));
+    .sort((left, right) => left.title.localeCompare(right.title) || left.taskName.localeCompare(right.taskName));
 
   const totalCount = payload?.tasks.length ?? 0;
   const filteredCount = filteredTasks.length;

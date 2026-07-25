@@ -719,6 +719,8 @@
 
 .dag-bars {
   margin-top: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
 .dag-bars-plot {
@@ -726,6 +728,8 @@
   align-items: end;
   gap: 8px;
   min-height: 176px;
+  width: max-content;
+  min-width: 100%;
 }
 
 .dag-bars-compact .dag-bars-plot {
@@ -734,8 +738,8 @@
 }
 
 .dag-bars-slot {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 42px;
+  min-width: 42px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -757,6 +761,8 @@
   gap: 3px;
   color: var(--muted);
   text-align: center;
+  width: 100%;
+  white-space: nowrap;
 }
 
 .dag-bars-label small {
@@ -1225,10 +1231,20 @@
     background 0.18s ease;
 }
 
+.registry-card-clickable {
+  cursor: pointer;
+}
+
 .registry-card:hover {
   border-color: var(--accent-line);
   background: rgba(12, 17, 28, 0.82);
   text-decoration: none;
+}
+
+.registry-card-clickable:focus-visible {
+  border-color: var(--accent-line);
+  background: rgba(12, 17, 28, 0.82);
+  outline: none;
 }
 
 .registry-card-head,
@@ -1252,7 +1268,7 @@
 }
 
 .registry-card-title {
-  margin: 6px 0 0;
+  margin: 0;
   font-family: var(--mono);
   font-size: 1rem;
   line-height: 1.34;
@@ -1456,7 +1472,7 @@
 
 .registry-fact-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
