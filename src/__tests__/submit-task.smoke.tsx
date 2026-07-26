@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { BenchmarksPage } from "../components/benchmarks/BenchmarksPage";
 import { SiteHeader } from "../components/layout/SiteHeader";
 import { SubmitTaskPage } from "../components/submit/SubmitTaskPage";
 import { SubmissionStatusPage } from "../components/submit/SubmissionStatusPage";
@@ -59,6 +60,12 @@ const statusHtml = renderToStaticMarkup(<SubmissionStatusPage />);
 assert.match(statusHtml, /Track a Task on GitHub/);
 assert.match(statusHtml, /Proposal issue/);
 assert.match(statusHtml, /Task pull request/);
+
+const benchmarksHtml = renderToStaticMarkup(<BenchmarksPage />);
+assert.match(benchmarksHtml, /Select difficulty/);
+assert.match(benchmarksHtml, /Select category/);
+assert.match(benchmarksHtml, /Select tag/);
+assert.match(benchmarksHtml, /Search tasks/);
 
 await copyTextToClipboard("python3 scripts/validate_task_contribution.py --task-dir tasks/task_my_new_case --static-only");
 assert.equal(clipboardCalls.length, 1);

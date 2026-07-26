@@ -7,16 +7,20 @@ import type { BenchmarkTaskSummary, BenchmarksIndexPayload } from "../../types/b
 type FilterState = {
   query: string;
   difficulty: string;
+  category: string;
+  tag: string;
   shouldDefaultDifficulty: boolean;
 };
 
-type PersistedFilters = Pick<FilterState, "query" | "difficulty">;
+type PersistedFilters = Pick<FilterState, "query" | "difficulty" | "category" | "tag">;
 
 function readFiltersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search);
   return {
     query: params.get("q") ?? "",
     difficulty: params.get("difficulty") ?? "",
+    category: params.get("category") ?? "",
+    tag: params.get("tag") ?? "",
     shouldDefaultDifficulty: !params.has("difficulty"),
   };
 }
@@ -29,6 +33,12 @@ function writeFiltersToUrl(filters: PersistedFilters) {
   if (filters.difficulty) {
     params.set("difficulty", filters.difficulty);
   }
+  if (filters.category) {
+    params.set("category", filters.category);
+  }
+  if (filters.tag) {
+    params.set("tag", filters.tag);
+  }
 
   const path = toAppPath("/benchmarks");
   const nextUrl = params.toString() ? `${path}?${params.toString()}` : path;
@@ -37,6 +47,10 @@ function writeFiltersToUrl(filters: PersistedFilters) {
 
 function formatDifficulty(value: string) {
   return value.replace(/_/g, " ");
+}
+
+function formatFacet(value: string) {
+  return value.replace(/_/g, " ").replace(/-/g, " ");
 }
 
 function BenchmarkStats({ payload, filteredCount }: { payload: BenchmarksIndexPayload; filteredCount: number }) {
@@ -134,6 +148,8 @@ export function BenchmarksPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState(initialFilters.query);
   const [difficulty, setDifficulty] = useState(initialFilters.difficulty);
+  const [category, setCategory] = useState(initialFilters.category);
+  const [tag, setTag] = useState(initialFilters.tag);
   const [shouldDefaultDifficulty, setShouldDefaultDifficulty] = useState(initialFilters.shouldDefaultDifficulty);
   const deferredQuery = useDeferredValue(query);
 
@@ -150,8 +166,8 @@ export function BenchmarksPage() {
   }, []);
 
   useEffect(() => {
-    writeFiltersToUrl({ query, difficulty });
-  }, [query, difficulty]);
+    writeFiltersToUrl({ query, difficulty, category, tag });
+  }, [query, difficulty, category, tag]);
 
   useEffect(() => {
     if (!payload || !shouldDefaultDifficulty) {
@@ -190,13 +206,21 @@ export function BenchmarksPage() {
         return false;
       }
 
+      if (category && task.category !== category) {
+        return false;
+      }
+
+      if (tag && !task.tags.includes(tag)) {
+        return false;
+      }
+
       return true;
     })
     .sort((left, right) => left.title.localeCompare(right.title) || left.taskName.localeCompare(right.taskName));
 
   const totalCount = payload?.tasks.length ?? 0;
   const filteredCount = filteredTasks.length;
-  const hasActiveFilters = Boolean(query.trim()) || Boolean(difficulty);
+  const hasActiveFilters = Boolean(query.trim()) || Boolean(difficulty) || Boolean(category) || Boolean(tag);
   const countLabel = loading
     ? "Loading tasks..."
     : hasActiveFilters
@@ -224,6 +248,8 @@ export function BenchmarksPage() {
             onClick={() => {
               setQuery("");
               setDifficulty("");
+              setCategory("");
+              setTag("");
             }}
           >
             Clear filters
@@ -233,7 +259,7 @@ export function BenchmarksPage() {
         {payload ? <BenchmarkStats payload={payload} filteredCount={filteredCount} /> : null}
 
         <section className="registry-filterbar" aria-label="Benchmark filters">
-          <label className="registry-search-field">
+          <label className="registry-filter-item registry-search-field">
             <input
               type="search"
               value={query}
@@ -242,7 +268,7 @@ export function BenchmarksPage() {
             />
           </label>
 
-          <label className="registry-select-shell">
+          <label className="registry-filter-item registry-select-shell">
             <select
               className={difficulty ? "registry-select-filled" : ""}
               value={difficulty}
@@ -252,6 +278,32 @@ export function BenchmarksPage() {
               {(payload?.filters.difficulties ?? []).map((option) => (
                 <option key={option.value} value={option.value}>
                   {formatDifficulty(option.value)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="registry-filter-item registry-select-shell">
+            <select
+              className={category ? "registry-select-filled" : ""}
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              <option value="">Select category</option>
+              {(payload?.filters.categories ?? []).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {formatFacet(option.value)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="registry-filter-item registry-select-shell">
+            <select className={tag ? "registry-select-filled" : ""} value={tag} onChange={(event) => setTag(event.target.value)}>
+              <option value="">Select tag</option>
+              {(payload?.filters.tags ?? []).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {formatFacet(option.value)}
                 </option>
               ))}
             </select>

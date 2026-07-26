@@ -1039,7 +1039,7 @@
 
 .registry-filterbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 0.65fr));
   margin-top: 16px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
@@ -1049,12 +1049,13 @@
     #06080d;
 }
 
+.registry-filter-item,
 .registry-search-field,
 .registry-select-shell {
   position: relative;
 }
 
-.registry-search-field {
+.registry-filter-item:not(:last-child) {
   border-right: 1px solid var(--border);
 }
 
@@ -1661,6 +1662,7 @@
 .registry-module-card {
   display: grid;
   gap: 10px;
+  min-width: 0;
   padding: 14px;
   color: inherit;
   text-align: left;
@@ -1675,20 +1677,45 @@
   background: rgba(17, 26, 42, 0.86);
 }
 
+.registry-module-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
 .registry-module-card-head strong {
+  display: block;
+  min-width: 0;
   font-family: var(--mono);
   font-size: 0.92rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.registry-module-card-head span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: right;
 }
 
 .registry-module-card p {
   margin: 0;
   color: var(--text);
   line-height: 1.68;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .registry-module-card small {
+  display: block;
+  max-width: 100%;
+  line-height: 1.55;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (max-width: 1120px) {
@@ -1709,8 +1736,7 @@
 @media (max-width: 820px) {
   .registry-page-header,
   .registry-card-head,
-  .registry-card-foot,
-  .registry-module-card-head {
+  .registry-card-foot {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -1723,13 +1749,21 @@
     grid-template-columns: 1fr;
   }
 
-  .registry-search-field {
+  .registry-filter-item:not(:last-child) {
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
   .registry-card {
     grid-template-columns: 1fr;
+  }
+
+  .registry-module-card-head {
+    grid-template-columns: 1fr;
+  }
+
+  .registry-module-card-head span {
+    text-align: left;
   }
 
   .registry-terminal-stats {
