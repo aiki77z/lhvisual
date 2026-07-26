@@ -13,6 +13,45 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "public" / "benchmarks-data"
 DEFAULT_REPO_URL = "https://github.com/microsoft/Loopsbench"
+DISPLAY_TITLE_OVERRIDES_PATH = REPO_ROOT / "scripts" / "benchmark_display_titles.yaml"
+CJK_RE = re.compile(r"[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]")
+DISPLAY_TEXT_REPLACEMENTS = (
+    (
+        'Some directory names are in Simplified Chinese (e.g., `\u5b9e\u9a8c\u7b54\u6848/\u5b9e\u9a8c\u4e8c/` means "Lab Answers / Experiment 2"); treat them as opaque path components and use the exact paths listed below.',
+        "The repository keeps the original source directory layout; the benchmark page uses English display aliases for those paths.",
+    ),
+    ("\u5b9e\u9a8c\u7b54\u6848/\u5b9e\u9a8c\u4e8c/", "lab_answers/experiment_2/"),
+    ("\u5b9e\u9a8c\u7b54\u6848/\u5b9e\u9a8c\u4e09/", "lab_answers/experiment_3/"),
+    (
+        '1. MySQL - \u6570\u636e\u5e93\u3001\u8868\u4e0e\u5b8c\u6574\u6027\u7ea6\u675f\u7684\u5b9a\u4e49(Create)/',
+        "1. MySQL - database_table_and_constraint_definition_create/",
+    ),
+    (
+        '2. MySQL - \u8868\u7ed3\u6784\u4e0e\u5b8c\u6574\u6027\u7ea6\u675f\u7684\u4fee\u6539(ALTER)/',
+        "2. MySQL - table_structure_and_constraint_modification_alter/",
+    ),
+    ("3. MySQL - \u6570\u636e\u67e5\u8be2(Select)/", "3. MySQL - data_queries_select/"),
+    ("4. MySQL - \u6570\u636e\u7684\u63d2\u5165\u3001\u4fee\u6539\u4e0e\u5220\u9664/", "4. MySQL - data_insertion_update_and_deletion/"),
+    ("5. MySQL - \u89c6\u56fe/", "5. MySQL - views/"),
+    ("6. MySQL - \u5b58\u50a8\u8fc7\u7a0b\u4e0e\u4e8b\u52a1/", "6. MySQL - stored_procedures_and_transactions/"),
+    ("6. MySQL - \u5b58\u50a8\u8fc7\u7a0b\u4e0e\u4e8b\u52d9/", "6. MySQL - stored_procedures_and_transactions/"),
+    ("7. MySQL - \u89e6\u53d1\u5668/", "7. MySQL - triggers/"),
+    ("8. MySQL - \u7528\u6237\u81ea\u5b9a\u4e49\u51fd\u6570/", "8. MySQL - user_defined_functions/"),
+    ("MySQL - \u6570\u636e\u67e5\u8be2(Select)\u4e4b\u4e8c/", "MySQL - advanced_data_queries_select_part_2/"),
+    ("Advanced SELECT Queries (\u6570\u636e\u67e5\u8be2\u4e4b\u4e8c)", "Advanced SELECT Queries (Part 2)"),
+    ('"\u767b\u5f55\u6210\u529f"', '"login succeeded"'),
+    ('"\u767b\u5f55\u5931\u8d25"', '"login failed"'),
+    ('"\u4fee\u6539\u5bc6\u7801\u6210\u529f"', '"password updated successfully"'),
+    ('"\u6210\u7ee9\u4fee\u6539\u6210\u529f\uff01"', '"grade updated successfully!"'),
+    ('"\u6210\u7ee9\u4fee\u6539\u5931\u8d25\uff01"', '"grade update failed!"'),
+    ('"\u4fee\u6539\u6210\u529f\uff01"', '"update succeeded!"'),
+    ('"\u4fee\u6539\u5931\u8d25\uff01"', '"update failed!"'),
+    ('"\u6dfb\u52a0\u9898\u76ee\u6210\u529f"', '"question added successfully"'),
+    ('"\u83b7\u53d6\u9898\u5e93\u6210\u529f"', '"question bank loaded successfully"'),
+    ('"\u9898\u53f7"', '"topicId"'),
+    ('"\u5b66\u751f"', '"student"'),
+    ('"\u6559\u5e08"', '"teacher"'),
+)
 TITLE_ACRONYMS = {
     "afl": "AFL",
     "ansible": "Ansible",
@@ -99,8 +138,48 @@ def _repo_url() -> str:
     return value or DEFAULT_REPO_URL
 
 
+def _load_display_title_overrides() -> dict[str, str]:
+    loaded = yaml.safe_load(DISPLAY_TITLE_OVERRIDES_PATH.read_text(encoding="utf-8")) or {}
+    return {str(key): str(value).strip() for key, value in loaded.items() if str(value).strip()}
+
+
 def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
+
+
+def _rewrite_display_text(value: str) -> str:
+    rewritten = value
+    for source, target in DISPLAY_TEXT_REPLACEMENTS:
+        rewritten = rewritten.replace(source, target)
+    return rewritten
+
+
+def _rewrite_display_value(value):
+    if isinstance(value, dict):
+        return {key: _rewrite_display_value(inner) for key, inner in value.items()}
+    if isinstance(value, list):
+        return [_rewrite_display_value(inner) for inner in value]
+    if isinstance(value, str):
+        return _rewrite_display_text(value)
+    return value
+
+
+def _find_cjk_paths(value, context: str = "root"):
+    if isinstance(value, dict):
+        for key, inner in value.items():
+            yield from _find_cjk_paths(inner, f"{context}.{key}")
+    elif isinstance(value, list):
+        for index, inner in enumerate(value):
+            yield from _find_cjk_paths(inner, f"{context}[{index}]")
+    elif isinstance(value, str) and CJK_RE.search(value):
+        yield context, value
+
+
+def _assert_no_cjk(value, *, context: str) -> None:
+    hits = list(_find_cjk_paths(value, context))
+    if hits:
+        preview = "; ".join(f"{path}={snippet[:120]!r}" for path, snippet in hits[:5])
+        raise SystemExit(f"CJK text remains in generated benchmark payload: {preview}")
 
 
 def _plain_text(value: str) -> str:
@@ -172,6 +251,9 @@ def _humanize_task_name(value: str) -> str:
             humanized.append(token.capitalize())
 
     return " ".join(humanized)
+
+
+DISPLAY_TITLE_OVERRIDES = _load_display_title_overrides()
 
 
 def _truncate_summary(value: str, *, max_length: int = 280) -> str:
@@ -347,7 +429,9 @@ def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
     ]
 
     task_name = str(task_yaml.get("task_name") or task_dir.name)
-    title = _normalize_text(_plain_text(str(module_dag.get("project") or ""))) or _humanize_task_name(task_name)
+    title = DISPLAY_TITLE_OVERRIDES.get(task_dir.name) or _normalize_text(
+        _plain_text(str(module_dag.get("project") or ""))
+    ) or _humanize_task_name(task_name)
     instruction_raw = str(task_yaml.get("instruction") or "")
     instruction = _plain_text(instruction_raw)
     summary = _pick_instruction_summary(instruction)
@@ -398,6 +482,8 @@ def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
             "layers": unit_layers,
         },
     }
+    detail = _rewrite_display_value(detail)
+    _assert_no_cjk(detail, context=f"detail:{task_dir.name}")
 
     summary_entry = {
         "id": detail["id"],
@@ -433,6 +519,8 @@ def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
             "unitLayers": detail["unitDag"]["layers"],
         },
     }
+    summary_entry = _rewrite_display_value(summary_entry)
+    _assert_no_cjk(summary_entry, context=f"summary:{task_dir.name}")
 
     return summary_entry, detail
 
@@ -449,6 +537,9 @@ def main() -> None:
     tasks_output_root.mkdir(parents=True, exist_ok=True)
 
     task_dirs = sorted(path for path in tasks_root.iterdir() if path.is_dir() and path.name.startswith("task_"))
+    missing_titles = [task_dir.name for task_dir in task_dirs if task_dir.name not in DISPLAY_TITLE_OVERRIDES]
+    if missing_titles:
+        raise SystemExit("Missing curated benchmark display titles for: " + ", ".join(missing_titles))
 
     summaries: list[dict] = []
     category_counts: Counter[str] = Counter()
@@ -506,6 +597,7 @@ def main() -> None:
         },
         "tasks": summaries,
     }
+    _assert_no_cjk(index_payload, context="index")
 
     (output_root / "index.json").write_text(
         json.dumps(index_payload, ensure_ascii=False, separators=(",", ":")),
