@@ -1,8 +1,8 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
 import { getBenchmarksIndex } from "../../lib/benchmarksApi";
 import { toPlainDisplayText } from "../../lib/plainText";
 import { toAppPath } from "../../lib/site";
-import type { BenchmarkTaskSummary, BenchmarksIndexPayload } from "../../types/benchmarks";
+import type { BenchmarkFilterOption, BenchmarkTaskSummary, BenchmarksIndexPayload } from "../../types/benchmarks";
 
 type FilterState = {
   query: string;
@@ -13,6 +13,7 @@ type FilterState = {
 };
 
 type PersistedFilters = Pick<FilterState, "query" | "difficulty" | "category" | "tag">;
+type FilterMenuKey = "category" | "tag";
 
 function readFiltersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search);
@@ -51,6 +52,180 @@ function formatDifficulty(value: string) {
 
 function formatFacet(value: string) {
   return value.replace(/_/g, " ").replace(/-/g, " ");
+}
+
+function FilterDropdown({
+  label,
+  placeholder,
+  value,
+  options,
+  isOpen,
+  onOpenChange,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  options: BenchmarkFilterOption[];
+  isOpen: boolean;
+  onOpenChange: (nextOpen: boolean) => void;
+  onChange: (nextValue: string) => void;
+}) {
+  const triggerId = useId();
+  const menuId = `${triggerId}-menu`;
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const menuOptions = [{ value: "", label: placeholder }, ...options.map((option) => ({ value: option.value, label: formatFacet(option.value) }))];
+  const displayValue = value ? formatFacet(value) : placeholder;
+  const selectedIndex = Math.max(
+    0,
+    menuOptions.findIndex((option) => option.value === value),
+  );
+  const [activeIndex, setActiveIndex] = useState(selectedIndex);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setActiveIndex(selectedIndex);
+  }, [isOpen, selectedIndex]);
+
+  const focusOption = (index: number) => {
+    if (menuOptions.length === 0) {
+      return;
+    }
+
+    const normalizedIndex = (index + menuOptions.length) % menuOptions.length;
+    setActiveIndex(normalizedIndex);
+    window.requestAnimationFrame(() => {
+      optionRefs.current[normalizedIndex]?.focus();
+    });
+  };
+
+  const handleSelect = (nextValue: string) => {
+    onChange(nextValue);
+    onOpenChange(false);
+    triggerRef.current?.focus();
+  };
+
+  return (
+    <div className="registry-filter-item registry-combobox">
+      <button
+        ref={triggerRef}
+        id={triggerId}
+        className={`registry-combobox-trigger${value ? " registry-combobox-filled" : ""}`}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-controls={menuId}
+        aria-label={`${label}: ${displayValue}`}
+        onClick={() => {
+          if (isOpen) {
+            onOpenChange(false);
+            return;
+          }
+
+          onOpenChange(true);
+          focusOption(selectedIndex);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            if (isOpen) {
+              onOpenChange(false);
+              return;
+            }
+
+            onOpenChange(true);
+            focusOption(selectedIndex);
+          }
+
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            onOpenChange(true);
+            focusOption(selectedIndex);
+          }
+
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            onOpenChange(true);
+            focusOption(selectedIndex === 0 ? menuOptions.length - 1 : selectedIndex);
+          }
+
+          if (event.key === "Escape" && isOpen) {
+            event.preventDefault();
+            onOpenChange(false);
+          }
+        }}
+      >
+        <span>{displayValue}</span>
+        <span className="registry-combobox-caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
+      {isOpen ? (
+        <div className="registry-combobox-panel">
+          <div className="registry-combobox-options" id={menuId} role="listbox" aria-labelledby={triggerId}>
+            {menuOptions.map((option, index) => (
+              <div
+                key={option.value}
+                id={`${menuId}-option-${index}`}
+                ref={(element) => {
+                  optionRefs.current[index] = element;
+                }}
+                className={`registry-combobox-option${value === option.value || (!value && option.value === "") ? " is-selected" : ""}`}
+                role="option"
+                aria-selected={value === option.value || (!value && option.value === "")}
+                tabIndex={activeIndex === index ? 0 : -1}
+                onFocus={() => setActiveIndex(index)}
+                onClick={() => handleSelect(option.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleSelect(option.value);
+                  }
+
+                  if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    focusOption(index + 1);
+                  }
+
+                  if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    focusOption(index - 1);
+                  }
+
+                  if (event.key === "Home") {
+                    event.preventDefault();
+                    focusOption(0);
+                  }
+
+                  if (event.key === "End") {
+                    event.preventDefault();
+                    focusOption(menuOptions.length - 1);
+                  }
+
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    onOpenChange(false);
+                    triggerRef.current?.focus();
+                  }
+
+                  if (event.key === "Tab") {
+                    onOpenChange(false);
+                  }
+                }}
+              >
+                {option.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function BenchmarkStats({ payload, filteredCount }: { payload: BenchmarksIndexPayload; filteredCount: number }) {
@@ -143,6 +318,7 @@ function TaskCard({ task }: { task: BenchmarkTaskSummary }) {
 
 export function BenchmarksPage() {
   const initialFilters = readFiltersFromUrl();
+  const filterBarRef = useRef<HTMLElement | null>(null);
   const [payload, setPayload] = useState<BenchmarksIndexPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -150,6 +326,7 @@ export function BenchmarksPage() {
   const [difficulty, setDifficulty] = useState(initialFilters.difficulty);
   const [category, setCategory] = useState(initialFilters.category);
   const [tag, setTag] = useState(initialFilters.tag);
+  const [openMenu, setOpenMenu] = useState<FilterMenuKey | null>(null);
   const [shouldDefaultDifficulty, setShouldDefaultDifficulty] = useState(initialFilters.shouldDefaultDifficulty);
   const deferredQuery = useDeferredValue(query);
 
@@ -179,6 +356,35 @@ export function BenchmarksPage() {
     }
     setShouldDefaultDifficulty(false);
   }, [payload, shouldDefaultDifficulty]);
+
+  useEffect(() => {
+    if (!openMenu) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+
+      if (!filterBarRef.current?.contains(event.target)) {
+        setOpenMenu(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenMenu(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openMenu]);
 
   const filteredTasks = (payload?.tasks ?? [])
     .filter((task) => {
@@ -258,12 +464,13 @@ export function BenchmarksPage() {
 
         {payload ? <BenchmarkStats payload={payload} filteredCount={filteredCount} /> : null}
 
-        <section className="registry-filterbar" aria-label="Benchmark filters">
+        <section className="registry-filterbar" aria-label="Benchmark filters" ref={filterBarRef}>
           <label className="registry-filter-item registry-search-field">
             <input
               type="search"
               value={query}
               placeholder="Search tasks"
+              onFocus={() => setOpenMenu(null)}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
@@ -272,6 +479,7 @@ export function BenchmarksPage() {
             <select
               className={difficulty ? "registry-select-filled" : ""}
               value={difficulty}
+              onFocus={() => setOpenMenu(null)}
               onChange={(event) => setDifficulty(event.target.value)}
             >
               <option value="">Select difficulty</option>
@@ -283,31 +491,25 @@ export function BenchmarksPage() {
             </select>
           </label>
 
-          <label className="registry-filter-item registry-select-shell">
-            <select
-              className={category ? "registry-select-filled" : ""}
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-            >
-              <option value="">Select category</option>
-              {(payload?.filters.categories ?? []).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {formatFacet(option.value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Select category"
+            placeholder="Select category"
+            value={category}
+            options={payload?.filters.categories ?? []}
+            isOpen={openMenu === "category"}
+            onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "category" : null)}
+            onChange={setCategory}
+          />
 
-          <label className="registry-filter-item registry-select-shell">
-            <select className={tag ? "registry-select-filled" : ""} value={tag} onChange={(event) => setTag(event.target.value)}>
-              <option value="">Select tag</option>
-              {(payload?.filters.tags ?? []).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {formatFacet(option.value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Select tag"
+            placeholder="Select tag"
+            value={tag}
+            options={payload?.filters.tags ?? []}
+            isOpen={openMenu === "tag"}
+            onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "tag" : null)}
+            onChange={setTag}
+          />
         </section>
 
         {error ? <p className="registry-empty-state">{error}</p> : null}

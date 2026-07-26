@@ -1041,7 +1041,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 0.65fr));
   margin-top: 16px;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background:
@@ -1104,6 +1105,86 @@
   background: #06080d;
   color: var(--text);
   -webkit-text-fill-color: var(--text);
+}
+
+.registry-combobox {
+  min-width: 0;
+}
+
+.registry-combobox-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border: 0;
+  background: #06080d;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.registry-combobox-trigger:hover,
+.registry-combobox-trigger:focus-visible {
+  background: #06080d;
+  color: var(--text);
+  outline: none;
+}
+
+.registry-combobox-filled {
+  color: var(--text);
+}
+
+.registry-combobox-caret {
+  flex-shrink: 0;
+  color: var(--faint);
+  font-size: 0.74rem;
+}
+
+.registry-combobox-trigger[aria-expanded="true"] .registry-combobox-caret {
+  color: var(--accent-2);
+}
+
+.registry-combobox-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: #06080d;
+  box-shadow: var(--shadow);
+}
+
+.registry-combobox-options {
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.registry-combobox-option {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.registry-combobox-option:hover,
+.registry-combobox-option:focus-visible,
+.registry-combobox-option.is-selected {
+  background: rgba(94, 140, 255, 0.16);
+  color: var(--text);
+  outline: none;
 }
 
 .registry-select-shell select option {
