@@ -348,7 +348,8 @@ def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
 
     task_name = str(task_yaml.get("task_name") or task_dir.name)
     title = _normalize_text(_plain_text(str(module_dag.get("project") or ""))) or _humanize_task_name(task_name)
-    instruction = _plain_text(str(task_yaml.get("instruction") or ""))
+    instruction_raw = str(task_yaml.get("instruction") or "")
+    instruction = _plain_text(instruction_raw)
     summary = _pick_instruction_summary(instruction)
     instruction_preview = _pick_instruction_preview(instruction)
     module_description = _normalize_text(_plain_text(str(module_dag.get("description") or ""))) or summary
@@ -362,7 +363,7 @@ def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
         "title": title,
         "summary": summary,
         "instructionPreview": instruction_preview,
-        "instruction": instruction,
+        "instruction": instruction_raw,
         "category": str(task_yaml.get("category") or "unknown"),
         "difficulty": str(task_yaml.get("difficulty") or "unknown"),
         "tags": tags,
