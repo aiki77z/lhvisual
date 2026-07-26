@@ -1065,7 +1065,7 @@
   height: 52px;
   padding: 0 16px;
   border: 0;
-  background: transparent;
+  background: #06080d;
   color: var(--text);
   outline: none;
 }
@@ -1089,9 +1089,25 @@
 .registry-select-shell select {
   padding-right: 40px;
   appearance: none;
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1;
 }
 
 .registry-select-shell select.registry-select-filled {
+  color: var(--text);
+  background: #06080d;
+  -webkit-text-fill-color: var(--text);
+}
+
+.registry-select-shell select:hover,
+.registry-select-shell select:focus-visible {
+  background: #06080d;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+}
+
+.registry-select-shell select option {
+  background: #06080d;
   color: var(--text);
 }
 
