@@ -1927,15 +1927,42 @@
   margin-bottom: 0;
 }
 
-.contribution-criteria-grid,
+.contribution-criteria-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px 20px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+
 .contribution-faq-list {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.contribution-criterion-card,
+.contribution-criterion-card {
+  display: grid;
+  gap: 10px;
+  min-height: 178px;
+  padding: 20px 22px;
+  border-color: rgba(96, 116, 150, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 36%),
+    rgba(8, 11, 20, 0.76);
+}
+
 .contribution-faq-card,
 .contribution-command-card {
   padding: 16px;
+}
+
+.contribution-criterion-card .registry-subsection-title {
+  line-height: 1.42;
+}
+
+.contribution-criterion-note {
+  margin-top: 0;
+  color: #b8c4d8;
+  line-height: 1.76;
 }
 
 .contribution-structure-block,
