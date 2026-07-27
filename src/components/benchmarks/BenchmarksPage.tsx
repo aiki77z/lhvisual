@@ -13,7 +13,7 @@ type FilterState = {
 };
 
 type PersistedFilters = Pick<FilterState, "query" | "difficulty" | "category" | "tag">;
-type FilterMenuKey = "category" | "tag";
+type FilterMenuKey = "difficulty" | "category" | "tag";
 
 function readFiltersFromUrl(): FilterState {
   const params = new URLSearchParams(window.location.search);
@@ -475,21 +475,15 @@ export function BenchmarksPage() {
             />
           </label>
 
-          <label className="registry-filter-item registry-select-shell">
-            <select
-              className={difficulty ? "registry-select-filled" : ""}
-              value={difficulty}
-              onFocus={() => setOpenMenu(null)}
-              onChange={(event) => setDifficulty(event.target.value)}
-            >
-              <option value="">Select difficulty</option>
-              {(payload?.filters.difficulties ?? []).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {formatDifficulty(option.value)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label="Select difficulty"
+            placeholder="Select difficulty"
+            value={difficulty}
+            options={payload?.filters.difficulties ?? []}
+            isOpen={openMenu === "difficulty"}
+            onOpenChange={(nextOpen) => setOpenMenu(nextOpen ? "difficulty" : null)}
+            onChange={setDifficulty}
+          />
 
           <FilterDropdown
             label="Select category"
