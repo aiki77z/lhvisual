@@ -1,16 +1,20 @@
 export type Point = { x: number; y: number };
 
-// Cassini ovals: the locus of points whose distances to two foci multiply to a constant.
-// At m = 1 the curve is the lemniscate of Bernoulli, which is the infinity symbol, its two
-// lobes meeting in a clean X. Raise m and the crossing opens into a pinched waist, the waist
-// fills, and the curve settles into an oval. Every value of m is one closed curve that is
-// symmetric left to right and top to bottom, so the mark stays balanced the whole way across
-// rather than passing through the lopsided in-between shapes a blend of two drawings gives.
+// The mark is one closed loop of line, held at its two ends and folded. Travel around the ring
+// and scale the line's swing by how near it is to the ends: the ends keep their full swing, the
+// middle loses it, and once the middle has swung past the axis the line has crossed itself. The
+// ring becomes the infinity. Nothing is blended and nothing is pinched, because the line is only
+// ever being folded, and the loop stays closed at every stage.
 //
-//   r(theta)^2 = cos 2*theta + sqrt(cos^2 2*theta + m^4 - 1)
+//   f(t)  = sqrt( cos^2 t + r ) - sqrt(r)      the fold profile, full at the ends, none midway
+//   y(t)  = sin t * ( 1 - w + w f(t) )         the fold, w from 0 at the ring to 1 at the mark
+//   z(t)  = depth * w * sin t                  the tilt that carries one strand in front
 //
-// The curve is drawn in the logo's own coordinate box, spanning x 4..38 around a centre at
-// (21, 16), which is the mark as it has always been drawn.
+// The profile depends on t only through cos^2 t, so it is unchanged by t -> -t and by
+// t -> PI - t. The loop is therefore its own mirror in both axes at every stage of the fold,
+// which is what keeps the middle of the breath as balanced as the two ends. The rounding r
+// smooths the profile where it would otherwise come to a point. The tilt fades in with the
+// fold, so the ring sits flat and square while the crossing gains a real over and under.
 
 const CENTER_X = 21;
 const CENTER_Y = 16;
@@ -22,128 +26,167 @@ const TANGLED_HALF_HEIGHT = 8;
 const RELEASED_HALF_WIDTH = 11.5;
 const RELEASED_HALF_HEIGHT = 9.6;
 
-export const LOOP_PERIOD = Math.PI * 2;
+const TWO_PI = Math.PI * 2;
+const SAMPLES = 168;
+// Eye distance in units of the loop's own radius. Far enough that the two lobes stay matched,
+// near enough that the strand swinging toward the viewer still gains a little weight.
+const FOCAL = 14;
+// How far out of the page the loop tilts. Enough to separate the strands at the crossing, not
+// so much that the ring reads as an ellipse seen at an angle.
+const DEPTH = 0.62;
 
-const TANGLED_M = 1.0;
-// Far enough out that the curve is round on its own terms, so the released mark reads as a
-// ring rather than as a wide shape squeezed into one.
-const RELEASED_M = 3.0;
+// The fold at which the loop has become the infinity, with the crossing open rather than just
+// touching.
+export const TANGLED_TWIST = 1.08;
+// Rounds the fold profile at its low point, so the waist closes into the crossing on a curve
+// instead of arriving at a corner.
+const FOLD_ROUND = 0.016;
 
-export const TANGLED_TWIST = 0;
+type Spatial = { x: number; y: number; z: number };
 
-function shapeM(twist: number) {
-  const t = Math.min(1, Math.max(0, twist));
-  // The silhouette changes fastest just off the crossing and barely at all once the curve is
-  // round, so the parameter is held back early and allowed to run late. That spreads the
-  // visible change evenly over the breath instead of racing past the shapes worth seeing.
-  return TANGLED_M + (RELEASED_M - TANGLED_M) * t ** 3;
+function twistedPoint(t: number, twist: number): Spatial {
+  const c = Math.cos(t);
+  const fold = Math.sqrt(c * c + FOLD_ROUND) - Math.sqrt(FOLD_ROUND);
+  const s = Math.sin(t);
+  return { x: c, y: s * (1 - twist + twist * fold), z: DEPTH * twist * s };
 }
 
-function radius(theta: number, k: number) {
-  const u = Math.cos(2 * theta);
-  return Math.sqrt(Math.max(0, u + Math.sqrt(u * u + k)));
+function project(p: Spatial, yaw: number) {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const x = p.x * c + p.z * s;
+  const z = p.z * c - p.x * s;
+  const k = FOCAL / (FOCAL - z);
+  return { x: x * k, y: p.y * k, z };
 }
 
-export type LoopExtent = {
-  k: number;
-  scaleX: number;
-  scaleY: number;
-  rightT: number;
+export type LoopFrame = {
+  path: string;
+  back: string;
+  front: string;
+  point: (u: number) => Point;
+  tangent: (u: number) => Point;
+  depth: (u: number) => number;
 };
-
-// The mark is drawn wide when tangled and draws in as it releases, so the box it is fitted
-// into travels with the shape. The raw curve is measured each frame and mapped onto that box,
-// which keeps the silhouette on the mark's own proportions at both ends instead of letting the
-// released state flatten into a stadium. The diagram spans two fixed docks, so it passes
-// holdWidth to keep the loop meeting its connectors at every point of the breath.
-export function loopExtent(twist: number, holdWidth = false, samples = 240): LoopExtent {
-  const t = Math.min(1, Math.max(0, twist));
-  const m = shapeM(t);
-  const k = m ** 4 - 1;
-  let maxX = 0;
-  let maxY = 0;
-
-  for (let index = 0; index < samples; index += 1) {
-    const theta = (index / samples) * LOOP_PERIOD;
-    const r = radius(theta, k);
-    maxX = Math.max(maxX, Math.abs(r * Math.cos(theta)));
-    maxY = Math.max(maxY, Math.abs(r * Math.sin(theta)));
-  }
-
-  const halfWidth = holdWidth
-    ? TANGLED_HALF_WIDTH
-    : TANGLED_HALF_WIDTH + (RELEASED_HALF_WIDTH - TANGLED_HALF_WIDTH) * t;
-  const halfHeight = TANGLED_HALF_HEIGHT + (RELEASED_HALF_HEIGHT - TANGLED_HALF_HEIGHT) * t;
-
-  return {
-    k,
-    scaleX: maxX > 1e-6 ? halfWidth / maxX : halfWidth,
-    scaleY: maxY > 1e-6 ? halfHeight / maxY : halfHeight,
-    rightT: 0,
-  };
-}
-
-export function loopPoint(theta: number, _twist: number, extent: LoopExtent): Point {
-  const r = radius(theta, extent.k);
-  return {
-    x: CENTER_X + r * Math.cos(theta) * extent.scaleX,
-    y: CENTER_Y + r * Math.sin(theta) * extent.scaleY,
-  };
-}
-
-export function loopVelocity(theta: number, _twist: number, extent: LoopExtent): Point {
-  const u = Math.cos(2 * theta);
-  const s = Math.sqrt(u * u + extent.k);
-  const r = radius(theta, extent.k);
-  // From differentiating r^2 = u + s, with u' = -2 sin 2*theta.
-  const dr = r > 1e-6 ? (-2 * Math.sin(2 * theta) * (1 + u / s)) / (2 * r) : 0;
-  return {
-    x: (dr * Math.cos(theta) - r * Math.sin(theta)) * extent.scaleX,
-    y: (dr * Math.sin(theta) + r * Math.cos(theta)) * extent.scaleY,
-  };
-}
 
 function fmt(value: number) {
   return value.toFixed(2);
 }
 
-// Cubic Hermite from the analytic tangent, so the drawn path sits on the real curve instead
-// of on a spline guessed from the samples.
-export function loopPath(twist: number, samples = 96) {
-  const extent = loopExtent(twist);
-  const step = LOOP_PERIOD / samples;
-  const start = loopPoint(0, twist, extent);
-  const commands = [`M${fmt(start.x)} ${fmt(start.y)}`];
+// Catmull-Rom through the samples, written out as cubic beziers.
+function spline(points: Point[], closed: boolean) {
+  if (points.length < 2) return "";
+  const count = points.length;
+  const commands = [`M${fmt(points[0].x)} ${fmt(points[0].y)}`];
+  const last = closed ? count : count - 1;
 
-  for (let index = 0; index < samples; index += 1) {
-    const t0 = index * step;
-    const t1 = t0 + step;
-    const p0 = loopPoint(t0, twist, extent);
-    const p1 = loopPoint(t1, twist, extent);
-    const v0 = loopVelocity(t0, twist, extent);
-    const v1 = loopVelocity(t1, twist, extent);
+  for (let index = 0; index < last; index += 1) {
+    const p0 = points[closed ? (index - 1 + count) % count : Math.max(0, index - 1)];
+    const p1 = points[index % count];
+    const p2 = points[(index + 1) % count];
+    const p3 = points[closed ? (index + 2) % count : Math.min(count - 1, index + 2)];
     commands.push(
-      `C${fmt(p0.x + (v0.x * step) / 3)} ${fmt(p0.y + (v0.y * step) / 3)} ` +
-        `${fmt(p1.x - (v1.x * step) / 3)} ${fmt(p1.y - (v1.y * step) / 3)} ` +
-        `${fmt(p1.x)} ${fmt(p1.y)}`,
+      `C${fmt(p1.x + (p2.x - p0.x) / 6)} ${fmt(p1.y + (p2.y - p0.y) / 6)} ` +
+        `${fmt(p2.x - (p3.x - p1.x) / 6)} ${fmt(p2.y - (p3.y - p1.y) / 6)} ` +
+        `${fmt(p2.x)} ${fmt(p2.y)}`,
     );
   }
 
-  return `${commands.join("")}Z`;
+  return closed ? `${commands.join("")}Z` : commands.join("");
+}
+
+// The loop is drawn wide when tangled and draws in as it releases, so the box it is fitted
+// into travels with the shape. The diagram spans two fixed docks, so it passes holdWidth to
+// keep the loop meeting its connectors at every point of the breath.
+export function makeLoopFrame(twist: number, yaw: number, holdWidth = false): LoopFrame {
+  const raw: { x: number; y: number; z: number }[] = [];
+  let maxX = 1e-6;
+  let maxY = 1e-6;
+
+  for (let index = 0; index < SAMPLES; index += 1) {
+    const p = project(twistedPoint((index / SAMPLES) * TWO_PI, twist), yaw);
+    raw.push(p);
+    maxX = Math.max(maxX, Math.abs(p.x));
+    maxY = Math.max(maxY, Math.abs(p.y));
+  }
+
+  const open = 1 - Math.min(1, Math.max(0, twist / TANGLED_TWIST));
+  const halfWidth = holdWidth
+    ? TANGLED_HALF_WIDTH
+    : TANGLED_HALF_WIDTH + (RELEASED_HALF_WIDTH - TANGLED_HALF_WIDTH) * open;
+  const halfHeight = TANGLED_HALF_HEIGHT + (RELEASED_HALF_HEIGHT - TANGLED_HALF_HEIGHT) * open;
+  const scaleX = halfWidth / maxX;
+  const scaleY = halfHeight / maxY;
+
+  const toScreen = (p: { x: number; y: number }) => ({
+    x: CENTER_X + p.x * scaleX,
+    y: CENTER_Y + p.y * scaleY,
+  });
+
+  const point = (u: number) => toScreen(project(twistedPoint(u * TWO_PI, twist), yaw));
+  const tangent = (u: number) => {
+    const step = 1 / SAMPLES;
+    const a = point(u - step);
+    const b = point(u + step);
+    const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    return { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+  };
+
+  const screen = raw.map(toScreen);
+
+  // Split the loop where it passes through the plane of the page. Drawing the far side first
+  // and the near side over it lets the crossing read as one line passing in front of itself,
+  // which is what makes it a line being twisted rather than a shape being reshaped.
+  const backRuns: Point[][] = [];
+  const frontRuns: Point[][] = [];
+  let run: Point[] = [];
+  let runIsBack = raw[0].z < 0;
+
+  for (let index = 0; index <= SAMPLES; index += 1) {
+    const at = index % SAMPLES;
+    const isBack = raw[at].z < 0;
+    if (isBack !== runIsBack && run.length > 1) {
+      run.push(screen[at]);
+      (runIsBack ? backRuns : frontRuns).push(run);
+      run = [screen[(at - 1 + SAMPLES) % SAMPLES]];
+      runIsBack = isBack;
+    }
+    run.push(screen[at]);
+  }
+  if (run.length > 1) (runIsBack ? backRuns : frontRuns).push(run);
+
+  const depth = (u: number) => project(twistedPoint(u * TWO_PI, twist), yaw).z;
+
+  return {
+    path: spline(screen, true),
+    back: backRuns.map((r) => spline(r, false)).join(""),
+    front: frontRuns.map((r) => spline(r, false)).join(""),
+    point,
+    tangent,
+    depth,
+  };
 }
 
 // One breath every ~11s at the base rate.
 const BASE_RATE = Math.PI / 11000;
 // A second term at an incommensurate rate stretches and compresses that breath. The phase
-// still only ever advances, so the mark never reverses into the shape it just left, and the
+// still only ever advances, so the loop never reverses into the shape it just left, and the
 // two rates never realign, so no two breaths take the same time and there is no beat to catch.
 const DRIFT_RATIO = 0.618;
 const DRIFT_DEPTH = 0.42;
 
-// Returns 0 at the crossing and 1 at the ring. The cosine turns the advancing phase around
-// smoothly at each end, so the mark settles into both states and leaves them without a corner.
+// Returns 0 at the ring and TANGLED_TWIST at the infinity. The cosine turns the advancing phase
+// around smoothly at each end, so the loop settles into both states and leaves them without a
+// corner, and the breath gives equal time to the ring and to the crossing.
 export function twistAt(elapsedMs: number) {
   const turn = BASE_RATE * elapsedMs;
   const phase = turn + DRIFT_DEPTH * Math.sin(turn * DRIFT_RATIO);
-  return (1 - Math.cos(phase)) / 2;
+  return ((1 - Math.cos(phase)) / 2) * TANGLED_TWIST;
+}
+
+// The loop is folded symmetrically about the plane of the page, so it is drawn square to the
+// viewer. Swinging the viewpoint would favour one lobe over the other and cost the balance the
+// fold is built to keep.
+export function yawAt(_elapsedMs: number) {
+  return 0;
 }

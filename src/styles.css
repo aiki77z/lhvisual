@@ -3226,6 +3226,11 @@ tbody tr:hover {
   opacity: 0.55;
 }
 
+/* The strand that passes behind at the crossing, dimmed so the line reads as going under. */
+.loop-core-far {
+  opacity: 0.16;
+}
+
 .stage-snapshot .loop-core-shape {
   stroke: #b9d8ff;
   filter:

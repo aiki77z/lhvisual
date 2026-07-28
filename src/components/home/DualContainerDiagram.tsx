@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { INFINITY_MARK_PATH } from "../brand/InfinityMark";
-import { LOOP_PERIOD, TANGLED_TWIST, loopExtent, loopPoint, loopVelocity, twistAt } from "../../lib/loopCurve";
+import { TANGLED_TWIST, makeLoopFrame, twistAt } from "../../lib/loopCurve";
 
 type Stage = "edit" | "snapshot" | "verify";
 
@@ -98,34 +98,26 @@ function limitedVector(vector: Point, maxLength: number): Point {
   return { x: vector.x * scale, y: vector.y * scale };
 }
 
-// The scene reads the same turning curve as the logo, so both marks show one object at one
-// angle. Theta stays a plain 0..2PI orbit parameter and maps onto the curve's own period.
-let sceneTwist = 0;
-let sceneExtent = loopExtent(0, true);
+// The scene reads the same folding loop as the logo, so both marks show one line at one stage
+// of the fold. Theta stays a plain 0..2PI orbit parameter along the loop.
+let sceneFrame = makeLoopFrame(0, 0, true);
 
 function setSceneTwist(twist: number) {
-  sceneTwist = twist;
-  sceneExtent = loopExtent(twist, true);
+  sceneFrame = makeLoopFrame(twist, 0, true);
 }
 
-function curveT(theta: number) {
-  return (theta / TWO_PI) * LOOP_PERIOD;
-}
-
-// Where the particle meets the loop. The curve narrows as it opens, so the handoff point is
-// read off the current frame rather than fixed to the tangled silhouette.
+// Where the particle meets the loop. The loop keeps its width in the diagram, so the handoff
+// sits at the right end of the line throughout the fold.
 function rightEdgeTheta() {
-  return (sceneExtent.rightT / LOOP_PERIOD) * TWO_PI;
+  return 0;
 }
 
 function baseLoopPoint(theta: number): Point {
-  return loopPoint(curveT(theta), sceneTwist, sceneExtent);
+  return sceneFrame.point(theta / TWO_PI);
 }
 
 function baseLoopTangent(theta: number): Point {
-  const velocity = loopVelocity(curveT(theta), sceneTwist, sceneExtent);
-  const length = Math.hypot(velocity.x, velocity.y) || 1;
-  return { x: velocity.x / length, y: velocity.y / length };
+  return sceneFrame.tangent(theta / TWO_PI);
 }
 
 function baseLoopNormal(theta: number): Point {
@@ -201,6 +193,26 @@ function closedSplinePath(points: Point[]) {
   return commands.join("");
 }
 
+function openSplinePath(points: Point[]) {
+  if (points.length < 2) return "";
+  const commands = [`M${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
+  const count = points.length;
+
+  for (let index = 0; index < count - 1; index += 1) {
+    const p0 = points[Math.max(0, index - 1)];
+    const p1 = points[index];
+    const p2 = points[index + 1];
+    const p3 = points[Math.min(count - 1, index + 2)];
+    commands.push(
+      `C${(p1.x + (p2.x - p0.x) / 6).toFixed(2)} ${(p1.y + (p2.y - p0.y) / 6).toFixed(2)} ` +
+        `${(p2.x - (p3.x - p1.x) / 6).toFixed(2)} ${(p2.y - (p3.y - p1.y) / 6).toFixed(2)} ` +
+        `${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`,
+    );
+  }
+
+  return commands.join("");
+}
+
 function loopFrame(phase: number, fromDockLocal: Point) {
   const enterEnd = 0.18;
   const exitStart = 0.88;
@@ -259,6 +271,27 @@ function loopFrame(phase: number, fromDockLocal: Point) {
     return deformedLoopPoint(theta, contactTheta, particlePoint, influence);
   });
 
+  // Split the deformed line where it passes through the plane of the page, so the crossing is
+  // drawn as a real over and under rather than as a join. The depth comes from the same fold
+  // the logo uses, read at the matching point along the loop.
+  const openRuns: Point[][] = [];
+  const nearRuns: Point[][] = [];
+  let run: Point[] = [];
+  let runIsFar = sceneFrame.depth(0) < 0;
+
+  for (let index = 0; index <= LOOP_SAMPLE_COUNT; index += 1) {
+    const at = index % LOOP_SAMPLE_COUNT;
+    const isFar = sceneFrame.depth(at / LOOP_SAMPLE_COUNT) < 0;
+    if (isFar !== runIsFar && run.length > 1) {
+      run.push(pathPoints[at]);
+      (runIsFar ? openRuns : nearRuns).push(run);
+      run = [pathPoints[(at - 1 + LOOP_SAMPLE_COUNT) % LOOP_SAMPLE_COUNT]];
+      runIsFar = isFar;
+    }
+    run.push(pathPoints[at]);
+  }
+  if (run.length > 1) (runIsFar ? openRuns : nearRuns).push(run);
+
   const trailPoint = mixPoint(
     deformedLoopPoint(contactTheta - 0.18, contactTheta, particlePoint, influence),
     particlePoint,
@@ -272,6 +305,8 @@ function loopFrame(phase: number, fromDockLocal: Point) {
 
   return {
     path: closedSplinePath(pathPoints),
+    far: openRuns.map(openSplinePath).join(""),
+    near: nearRuns.map(openSplinePath).join(""),
     particlePoint,
     trailPoint,
     softTrailPoint,
@@ -308,6 +343,7 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
   const shapeRef = useRef<SVGPathElement | null>(null);
   const flowRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
+  const farRef = useRef<SVGPathElement | null>(null);
   const particleRef = useRef<SVGGElement | null>(null);
   const trailRef = useRef<SVGGElement | null>(null);
   const softTrailRef = useRef<SVGGElement | null>(null);
@@ -332,8 +368,12 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       setSceneTwist(reduce ? TANGLED_TWIST : twistAt(now));
       const frame = loopFrame(phase, fromDockLocal);
 
-      [shadowRef.current, liquidRef.current, shapeRef.current, flowRef.current, highlightRef.current]
+      [shadowRef.current, liquidRef.current, shapeRef.current, flowRef.current]
         .forEach((path) => path?.setAttribute("d", frame.path));
+      // The crossing is drawn as the line passing in front of itself: the far strand first,
+      // dimmed, then the near strand over it.
+      farRef.current?.setAttribute("d", frame.far);
+      highlightRef.current?.setAttribute("d", frame.near);
       setTransform(particleRef.current, frame.particlePoint);
       setTransform(trailRef.current, frame.trailPoint);
       setTransform(softTrailRef.current, frame.softTrailPoint);
@@ -357,6 +397,7 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
         <path ref={liquidRef} className="loop-core-liquid" d={INFINITY_MARK_PATH} />
         <path ref={shapeRef} className="loop-core-shape" d={INFINITY_MARK_PATH} />
         <path ref={flowRef} className="loop-core-flow" d={INFINITY_MARK_PATH} />
+        <path ref={farRef} className="loop-core-highlight loop-core-far" d="" />
         <path ref={highlightRef} className="loop-core-highlight" d={INFINITY_MARK_PATH} />
         <g ref={trailRef} className="loop-particle loop-particle-trail">
           <circle className="loop-particle-trail-dot" r={geo === desktopGeo ? 0.62 : 0.52} />
