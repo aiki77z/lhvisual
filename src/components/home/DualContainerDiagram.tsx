@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { INFINITY_MARK_PATH } from "../brand/InfinityMark";
+import { LOOP_PERIOD, TANGLED_TWIST, loopExtent, loopPoint, loopVelocity, twistAt } from "../../lib/loopCurve";
 
 type Stage = "edit" | "snapshot" | "verify";
 
@@ -61,13 +62,6 @@ const LOOP_CENTER = { x: 21, y: 16 };
 const LOOP_SAMPLE_COUNT = 96;
 const LOOP_CYCLE_MS = 9200;
 const TWO_PI = Math.PI * 2;
-const RIGHT_EDGE_THETA = TWO_PI * 0.75;
-const LOGO_SEGMENTS = [
-  [{ x: 21, y: 16 }, { x: 21, y: 8 }, { x: 4, y: 8 }, { x: 4, y: 16 }],
-  [{ x: 4, y: 16 }, { x: 4, y: 24 }, { x: 21, y: 24 }, { x: 21, y: 16 }],
-  [{ x: 21, y: 16 }, { x: 21, y: 8 }, { x: 38, y: 8 }, { x: 38, y: 16 }],
-  [{ x: 38, y: 16 }, { x: 38, y: 24 }, { x: 21, y: 24 }, { x: 21, y: 16 }],
-] as const;
 
 function wrapAngle(angle: number) {
   return Math.atan2(Math.sin(angle), Math.cos(angle));
@@ -104,47 +98,34 @@ function limitedVector(vector: Point, maxLength: number): Point {
   return { x: vector.x * scale, y: vector.y * scale };
 }
 
-function cubicAt(segment: readonly Point[], u: number): Point {
-  const p0 = segment[0];
-  const p1 = segment[1];
-  const p2 = segment[2];
-  const p3 = segment[3];
-  const a = 1 - u;
-  return {
-    x: a ** 3 * p0.x + 3 * a * a * u * p1.x + 3 * a * u * u * p2.x + u ** 3 * p3.x,
-    y: a ** 3 * p0.y + 3 * a * a * u * p1.y + 3 * a * u * u * p2.y + u ** 3 * p3.y,
-  };
+// The scene reads the same turning curve as the logo, so both marks show one object at one
+// angle. Theta stays a plain 0..2PI orbit parameter and maps onto the curve's own period.
+let sceneTwist = 0;
+let sceneExtent = loopExtent(0, true);
+
+function setSceneTwist(twist: number) {
+  sceneTwist = twist;
+  sceneExtent = loopExtent(twist, true);
 }
 
-function cubicTangentAt(segment: readonly Point[], u: number): Point {
-  const p0 = segment[0];
-  const p1 = segment[1];
-  const p2 = segment[2];
-  const p3 = segment[3];
-  const a = 1 - u;
-  return {
-    x: 3 * a * a * (p1.x - p0.x) + 6 * a * u * (p2.x - p1.x) + 3 * u * u * (p3.x - p2.x),
-    y: 3 * a * a * (p1.y - p0.y) + 6 * a * u * (p2.y - p1.y) + 3 * u * u * (p3.y - p2.y),
-  };
+function curveT(theta: number) {
+  return (theta / TWO_PI) * LOOP_PERIOD;
 }
 
-function segmentAt(theta: number) {
-  const progress = (((theta / TWO_PI) % 1) + 1) % 1;
-  const scaled = progress * LOGO_SEGMENTS.length;
-  const index = Math.min(LOGO_SEGMENTS.length - 1, Math.floor(scaled));
-  return { segment: LOGO_SEGMENTS[index], u: scaled - index };
+// Where the particle meets the loop. The curve narrows as it opens, so the handoff point is
+// read off the current frame rather than fixed to the tangled silhouette.
+function rightEdgeTheta() {
+  return (sceneExtent.rightT / LOOP_PERIOD) * TWO_PI;
 }
 
 function baseLoopPoint(theta: number): Point {
-  const { segment, u } = segmentAt(theta);
-  return cubicAt(segment, u);
+  return loopPoint(curveT(theta), sceneTwist, sceneExtent);
 }
 
 function baseLoopTangent(theta: number): Point {
-  const { segment, u } = segmentAt(theta);
-  const tangent = cubicTangentAt(segment, u);
-  const length = Math.hypot(tangent.x, tangent.y) || 1;
-  return { x: tangent.x / length, y: tangent.y / length };
+  const velocity = loopVelocity(curveT(theta), sceneTwist, sceneExtent);
+  const length = Math.hypot(velocity.x, velocity.y) || 1;
+  return { x: velocity.x / length, y: velocity.y / length };
 }
 
 function baseLoopNormal(theta: number): Point {
@@ -174,15 +155,17 @@ function deformedLoopPoint(theta: number, contactTheta: number, particlePoint: P
   const anchor = baseLoopPoint(contactTheta);
   const pullVector = limitedVector(
     { x: particlePoint.x - anchor.x, y: particlePoint.y - anchor.y },
-    2.15 * influence,
+    1.1 * influence,
   );
   const tangent = baseLoopTangent(contactTheta);
   const distance = wrapAngle(theta - contactTheta);
-  const contact = Math.exp(-(distance * distance) / 0.052);
-  const shoulder = Math.exp(-(distance * distance) / 0.22);
-  const wake = Math.exp(-((distance + 0.38) * (distance + 0.38)) / 0.13);
-  const counterWake = Math.exp(-((distance - 0.34) * (distance - 0.34)) / 0.15);
-  const ripple = (wake - counterWake) * 0.38 * influence;
+  // Wide and shallow, so the particle reads as the loop flexing around it rather than as a
+  // dent pressed into an otherwise clean curve.
+  const contact = Math.exp(-(distance * distance) / 0.26);
+  const shoulder = Math.exp(-(distance * distance) / 0.8);
+  const wake = Math.exp(-((distance + 0.38) * (distance + 0.38)) / 0.34);
+  const counterWake = Math.exp(-((distance - 0.34) * (distance - 0.34)) / 0.38);
+  const ripple = (wake - counterWake) * 0.16 * influence;
   const drag = contact * 0.9 + shoulder * 0.12;
 
   return {
@@ -221,9 +204,10 @@ function closedSplinePath(points: Point[]) {
 function loopFrame(phase: number, fromDockLocal: Point) {
   const enterEnd = 0.18;
   const exitStart = 0.88;
-  const rightEdge = baseLoopPoint(RIGHT_EDGE_THETA);
-  const rightOutward = baseLoopOutward(RIGHT_EDGE_THETA);
-  let contactTheta = RIGHT_EDGE_THETA;
+  const entryTheta = rightEdgeTheta();
+  const rightEdge = baseLoopPoint(entryTheta);
+  const rightOutward = baseLoopOutward(entryTheta);
+  let contactTheta = entryTheta;
   let influence = 0;
   let particlePoint = fromDockLocal;
 
@@ -244,7 +228,7 @@ function loopFrame(phase: number, fromDockLocal: Point) {
   } else if (phase < exitStart) {
     const t = (phase - enterEnd) / (exitStart - enterEnd);
     const orbitalEase = easeInOut(t);
-    contactTheta = RIGHT_EDGE_THETA + orbitalEase * TWO_PI;
+    contactTheta = entryTheta + orbitalEase * TWO_PI;
     const base = baseLoopPoint(contactTheta);
     const outward = baseLoopOutward(contactTheta);
     const tangent = baseLoopTangent(contactTheta);
@@ -345,6 +329,7 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
 
     function render(now: number) {
       const phase = reduce ? 0.12 : (now % LOOP_CYCLE_MS) / LOOP_CYCLE_MS;
+      setSceneTwist(reduce ? TANGLED_TWIST : twistAt(now));
       const frame = loopFrame(phase, fromDockLocal);
 
       [shadowRef.current, liquidRef.current, shapeRef.current, flowRef.current, highlightRef.current]
