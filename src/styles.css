@@ -27,6 +27,56 @@
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* A thin low-contrast scrollbar recedes into the surface instead of reading as OS chrome
+     bolted onto the page. */
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4966;
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(77, 141, 255, 0.28);
+  color: #f2f6ff;
+}
+
+/* An in-page jump should read as travel rather than as a cut, and every heading the site links
+   to needs to clear the sticky header it lands under. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 84px;
+}
+
+/* Figures and readings are compared down a column, so digits are held to one width and never
+   shuffle as values change. */
+table,
+.mono-figure {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* ---------- Benchmarks ---------- */
@@ -2276,12 +2326,53 @@ button {
 }
 
 .site-nav {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 18px;
   color: var(--muted);
   font-size: 0.96rem;
+}
+
+.site-nav a {
+  position: relative;
+  z-index: 1;
+  /* The hit area is padded past the label so the target is generous while the row stays tight. */
+  margin: -6px -9px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  transition: color 180ms ease;
+}
+
+/* One block slides between items instead of each item lighting up on its own, so the eye can
+   follow a single object across the row. */
+.site-nav-block {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  left: 0;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: left center;
+  margin-top: -15px;
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+
+.site-nav-block[data-visible="true"] {
+  opacity: 1;
+}
+
+/* Before the block has ever been placed it must not slide in from the row's left edge. */
+.site-nav-block[data-settled="false"] {
+  transition: opacity 180ms ease;
 }
 
 .site-nav a.nav-active {
@@ -3211,6 +3302,27 @@ tbody tr:hover {
     drop-shadow(0 0 22px rgba(87, 204, 210, 0.18));
 }
 
+/* The strand that passes behind at the crossing. It carries the same weight as the near strand
+   so the line keeps one consistent body all the way round; the over and under is read from the
+   casing that cuts it at the crossing, not from fading half the loop into the background. */
+.loop-core-far {
+  stroke-width: 4.4;
+  opacity: 0.82;
+  filter: drop-shadow(0 0 7px rgba(101, 172, 255, 0.28));
+}
+
+/* Only wide enough to clear the near stroke, so it cuts the far strand at the crossing and
+   nowhere else. */
+.loop-core-casing {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 6.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.92;
+  vector-effect: non-scaling-stroke;
+}
+
 .loop-core-flow {
   stroke: rgba(233, 248, 255, 0.86);
   stroke-width: 1.65;
@@ -3226,12 +3338,7 @@ tbody tr:hover {
   opacity: 0.55;
 }
 
-/* The strand that passes behind at the crossing, dimmed so the line reads as going under. */
-.loop-core-far {
-  opacity: 0.16;
-}
-
-.stage-snapshot .loop-core-shape {
+.stage-snapshot .loop-core-shape:not(.loop-core-far) {
   stroke: #b9d8ff;
   filter:
     drop-shadow(0 0 13px rgba(169, 212, 255, 0.55))
@@ -3363,7 +3470,9 @@ tbody tr:hover {
   filter: blur(62px);
   opacity: 0.06;
   transform: translateX(-50%);
-  transition: opacity 260ms ease, transform 260ms ease;
+  transition:
+    opacity 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .docker-mark {
@@ -3372,7 +3481,12 @@ tbody tr:hover {
   fill: currentColor;
   filter: drop-shadow(0 0 22px rgba(77, 141, 255, 0.12));
   opacity: 0.76;
-  transition: filter 260ms ease, opacity 260ms ease, transform 260ms ease;
+  /* Leaves quickly and settles gently, so the station reads as lifting toward the pointer
+     rather than sliding a fixed distance. */
+  transition:
+    filter 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .docker-station:hover .docker-mark,
@@ -4574,6 +4688,8 @@ tbody tr:hover {
   .docker-mark,
   .docker-halo,
   .infinity-loop-control,
+  .site-nav a,
+  .site-nav-block,
   .diagram-code-field span {
     transition: none;
   }

@@ -76,6 +76,22 @@ function easeInOut(value: number) {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
+// The handoff into and out of the dock leaves fast and arrives gently, the shape GSAP calls an
+// expo ease out. The particle is being released rather than dragged, so nearly all of its travel
+// is spent close to the loop instead of drifting evenly across the gap.
+function easeOutExpo(value: number) {
+  const t = clamp(value, 0, 1);
+  return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+}
+
+// The trip around the loop keeps moving the whole way. A gentle ease at each end settles the
+// particle into the handoff without the long dead middle a smoothstep would give it, so the
+// travel reads as one continuous circuit rather than as a stall at the halfway mark.
+function easeInOutSine(value: number) {
+  const t = clamp(value, 0, 1);
+  return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
 function mixPoint(a: Point, b: Point, t: number): Point {
   return {
     x: a.x + (b.x - a.x) * t,
@@ -224,7 +240,7 @@ function loopFrame(phase: number, fromDockLocal: Point) {
   let particlePoint = fromDockLocal;
 
   if (phase < enterEnd) {
-    const t = easeInOut(phase / enterEnd);
+    const t = easeOutExpo(phase / enterEnd);
     const target = {
       x: rightEdge.x + rightOutward.x * 0.92,
       y: rightEdge.y + rightOutward.y * 0.92,
@@ -239,7 +255,7 @@ function loopFrame(phase: number, fromDockLocal: Point) {
     influence = easeInOut(t) * 0.95;
   } else if (phase < exitStart) {
     const t = (phase - enterEnd) / (exitStart - enterEnd);
-    const orbitalEase = easeInOut(t);
+    const orbitalEase = easeInOutSine(t);
     contactTheta = entryTheta + orbitalEase * TWO_PI;
     const base = baseLoopPoint(contactTheta);
     const outward = baseLoopOutward(contactTheta);
@@ -251,7 +267,7 @@ function loopFrame(phase: number, fromDockLocal: Point) {
     };
     influence = 0.9 + 0.1 * Math.sin(Math.PI * t);
   } else {
-    const t = easeInOut((phase - exitStart) / (1 - exitStart));
+    const t = easeInOutSine((phase - exitStart) / (1 - exitStart));
     const start = {
       x: rightEdge.x + rightOutward.x * 0.92,
       y: rightEdge.y + rightOutward.y * 0.92,
@@ -340,10 +356,11 @@ function LockMark() {
 function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
   const shadowRef = useRef<SVGPathElement | null>(null);
   const liquidRef = useRef<SVGPathElement | null>(null);
-  const shapeRef = useRef<SVGPathElement | null>(null);
+  const shapeFarRef = useRef<SVGPathElement | null>(null);
+  const casingRef = useRef<SVGPathElement | null>(null);
+  const shapeNearRef = useRef<SVGPathElement | null>(null);
   const flowRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
-  const farRef = useRef<SVGPathElement | null>(null);
   const particleRef = useRef<SVGGElement | null>(null);
   const trailRef = useRef<SVGGElement | null>(null);
   const softTrailRef = useRef<SVGGElement | null>(null);
@@ -368,11 +385,14 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       setSceneTwist(reduce ? TANGLED_TWIST : twistAt(now));
       const frame = loopFrame(phase, fromDockLocal);
 
-      [shadowRef.current, liquidRef.current, shapeRef.current, flowRef.current]
+      [shadowRef.current, liquidRef.current, flowRef.current]
         .forEach((path) => path?.setAttribute("d", frame.path));
       // The crossing is drawn as the line passing in front of itself: the far strand first,
-      // dimmed, then the near strand over it.
-      farRef.current?.setAttribute("d", frame.far);
+      // dimmed and thinner, then the near strand laid over it. Splitting the bright body of the
+      // line and not just a highlight is what lets the near strand actually hide the far one.
+      shapeFarRef.current?.setAttribute("d", frame.far);
+      casingRef.current?.setAttribute("d", frame.near);
+      shapeNearRef.current?.setAttribute("d", frame.near);
       highlightRef.current?.setAttribute("d", frame.near);
       setTransform(particleRef.current, frame.particlePoint);
       setTransform(trailRef.current, frame.trailPoint);
@@ -395,9 +415,10 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       <g transform={iconTransform}>
         <path ref={shadowRef} className="loop-core-shadow" d={INFINITY_MARK_PATH} />
         <path ref={liquidRef} className="loop-core-liquid" d={INFINITY_MARK_PATH} />
-        <path ref={shapeRef} className="loop-core-shape" d={INFINITY_MARK_PATH} />
+        <path ref={shapeFarRef} className="loop-core-shape loop-core-far" d="" />
+        <path ref={casingRef} className="loop-core-casing" d="" />
+        <path ref={shapeNearRef} className="loop-core-shape" d={INFINITY_MARK_PATH} />
         <path ref={flowRef} className="loop-core-flow" d={INFINITY_MARK_PATH} />
-        <path ref={farRef} className="loop-core-highlight loop-core-far" d="" />
         <path ref={highlightRef} className="loop-core-highlight" d={INFINITY_MARK_PATH} />
         <g ref={trailRef} className="loop-particle loop-particle-trail">
           <circle className="loop-particle-trail-dot" r={geo === desktopGeo ? 0.62 : 0.52} />

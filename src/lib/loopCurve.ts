@@ -1,20 +1,23 @@
 export type Point = { x: number; y: number };
 
-// The mark is one closed loop of line, held at its two ends and folded. Travel around the ring
-// and scale the line's swing by how near it is to the ends: the ends keep their full swing, the
-// middle loses it, and once the middle has swung past the axis the line has crossed itself. The
-// ring becomes the infinity. Nothing is blended and nothing is pinched, because the line is only
-// ever being folded, and the loop stays closed at every stage.
+// The mark is one closed loop of line, pinned at its left extreme and turned over at its right,
+// exactly the way a hand makes an infinity out of a rubber band. The turn is a real rotation of
+// the ring about its own long axis, growing from none at the pinned end to half a turn at the
+// turned end. Half a turn is what brings the upper strand under the lower one, so at the end of
+// the travel the line has crossed itself once and the ring has become the infinity.
 //
-//   f(t)  = sqrt( cos^2 t + r ) - sqrt(r)      the fold profile, full at the ends, none midway
-//   y(t)  = sin t * ( 1 - w + w f(t) )         the fold, w from 0 at the ring to 1 at the mark
-//   z(t)  = depth * w * sin t                  the tilt that carries one strand in front
+//   a(t)  = w * PI * ( 1 + cos t ) / 2      the turn, none at the left end, half a turn at right
+//   y(t)  = sin t * cos a(t)                the strand swinging through the page
+//   z(t)  = sin t * sin a(t)                the same swing carried out of the page
 //
-// The profile depends on t only through cos^2 t, so it is unchanged by t -> -t and by
-// t -> PI - t. The loop is therefore its own mirror in both axes at every stage of the fold,
-// which is what keeps the middle of the breath as balanced as the two ends. The rounding r
-// smooths the profile where it would otherwise come to a point. The tilt fades in with the
-// fold, so the ring sits flat and square while the crossing gains a real over and under.
+// Because y and z are one rotation of the same swing, the line keeps its length and is never
+// stretched or pinched: only its plane turns. The crossing is therefore a real over and under
+// with genuine depth rather than a waist drawn to meet itself, and w carries the loop from the
+// ring at 0 to the finished mark at 1 without any blend between two different shapes.
+//
+// The turn is anchored at one end, so the loop is its own mirror top to bottom at every stage
+// but not left to right until it arrives. That is the true shape of folding a ring once, and it
+// is what lets the finished mark be a clean infinity instead of a pinched waist.
 
 const CENTER_X = 21;
 const CENTER_Y = 16;
@@ -27,28 +30,21 @@ const RELEASED_HALF_WIDTH = 11.5;
 const RELEASED_HALF_HEIGHT = 9.6;
 
 const TWO_PI = Math.PI * 2;
-const SAMPLES = 168;
+const SAMPLES = 240;
 // Eye distance in units of the loop's own radius. Far enough that the two lobes stay matched,
 // near enough that the strand swinging toward the viewer still gains a little weight.
-const FOCAL = 14;
-// How far out of the page the loop tilts. Enough to separate the strands at the crossing, not
-// so much that the ring reads as an ellipse seen at an angle.
-const DEPTH = 0.62;
+const FOCAL = 16;
 
-// The fold at which the loop has become the infinity, with the crossing open rather than just
-// touching.
-export const TANGLED_TWIST = 1.08;
-// Rounds the fold profile at its low point, so the waist closes into the crossing on a curve
-// instead of arriving at a corner.
-const FOLD_ROUND = 0.016;
+// The turn at which the loop has become the infinity: half a turn at the far end, which is
+// exactly the point where the line has passed through itself once.
+export const TANGLED_TWIST = 1;
 
 type Spatial = { x: number; y: number; z: number };
 
 function twistedPoint(t: number, twist: number): Spatial {
-  const c = Math.cos(t);
-  const fold = Math.sqrt(c * c + FOLD_ROUND) - Math.sqrt(FOLD_ROUND);
-  const s = Math.sin(t);
-  return { x: c, y: s * (1 - twist + twist * fold), z: DEPTH * twist * s };
+  const swing = Math.sin(t);
+  const turn = (twist * Math.PI * (1 + Math.cos(t))) / 2;
+  return { x: Math.cos(t), y: swing * Math.cos(turn), z: swing * Math.sin(turn) };
 }
 
 function project(p: Spatial, yaw: number) {
@@ -174,19 +170,25 @@ const BASE_RATE = Math.PI / 11000;
 // two rates never realign, so no two breaths take the same time and there is no beat to catch.
 const DRIFT_RATIO = 0.618;
 const DRIFT_DEPTH = 0.42;
+// How much of the breath is spent at the finished mark. The infinity is what the site is named
+// for, so the loop rests there and only passes through the open ring on its way back.
+const DWELL = 0.62;
 
 // Returns 0 at the ring and TANGLED_TWIST at the infinity. The cosine turns the advancing phase
 // around smoothly at each end, so the loop settles into both states and leaves them without a
-// corner, and the breath gives equal time to the ring and to the crossing.
+// corner. Raising the settled value to a power under one holds the travel near the finished mark
+// and hurries it through the open ring, so the loop reads as an infinity that breathes rather
+// than as a ring and a mark given equal billing.
 export function twistAt(elapsedMs: number) {
   const turn = BASE_RATE * elapsedMs;
   const phase = turn + DRIFT_DEPTH * Math.sin(turn * DRIFT_RATIO);
-  return ((1 - Math.cos(phase)) / 2) * TANGLED_TWIST;
+  const settled = (1 - Math.cos(phase)) / 2;
+  return Math.pow(settled, 1 - DWELL) * TANGLED_TWIST;
 }
 
-// The loop is folded symmetrically about the plane of the page, so it is drawn square to the
-// viewer. Swinging the viewpoint would favour one lobe over the other and cost the balance the
-// fold is built to keep.
+// The turn is carried out of the page by the rotation itself, so the loop already shows its
+// depth head on. Swinging the viewpoint as well would tip the finished mark off its axis and
+// cost the level footing the wordmark sits on.
 export function yawAt(_elapsedMs: number) {
   return 0;
 }
