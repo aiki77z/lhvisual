@@ -3351,35 +3351,6 @@ tbody tr:hover {
   opacity: 1;
 }
 
-.loop-particle {
-  filter:
-    drop-shadow(0 0 13px rgba(178, 238, 241, 0.92))
-    drop-shadow(0 0 30px rgba(91, 204, 211, 0.5));
-}
-
-.loop-particle-glow {
-  fill: #83dfe4;
-  opacity: 0.28;
-}
-
-.loop-particle-core {
-  fill: #eef8ff;
-  stroke: #76d7dc;
-  stroke-width: 1.35;
-}
-
-.loop-particle-trail {
-  opacity: 0.34;
-}
-
-.loop-particle-trail-soft {
-  opacity: 0.18;
-}
-
-.loop-particle-trail-dot {
-  fill: #9cebf0;
-}
-
 @keyframes loop-flow {
   to {
     stroke-dashoffset: -72;
@@ -4701,7 +4672,6 @@ tbody tr:hover {
   .loop-core-shape,
   .loop-core-flow,
   .loop-core-highlight,
-  .loop-particle-glow,
   .station-tests i.active,
   .case-dag-edge,
   .case-node-running,
@@ -4712,10 +4682,6 @@ tbody tr:hover {
 
   .performance-fill {
     transform: scaleX(1);
-  }
-
-  .loop-particle-glow {
-    display: none;
   }
 }
 

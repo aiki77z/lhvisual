@@ -58,61 +58,8 @@ function loopIconTransform(geo: LoopGeometry) {
 
 type Point = { x: number; y: number };
 
-const LOOP_CENTER = { x: 21, y: 16 };
 const LOOP_SAMPLE_COUNT = 96;
-const LOOP_CYCLE_MS = 9200;
 const TWO_PI = Math.PI * 2;
-
-function wrapAngle(angle: number) {
-  return Math.atan2(Math.sin(angle), Math.cos(angle));
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function easeInOut(value: number) {
-  const t = clamp(value, 0, 1);
-  return t * t * t * (t * (t * 6 - 15) + 10);
-}
-
-// The handoff into and out of the dock leaves fast and arrives gently, the shape GSAP calls an
-// expo ease out. The particle is being released rather than dragged, so nearly all of its travel
-// is spent close to the loop instead of drifting evenly across the gap.
-function easeOutExpo(value: number) {
-  const t = clamp(value, 0, 1);
-  return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-}
-
-// The trip around the loop keeps moving the whole way. A gentle ease at each end settles the
-// particle into the handoff without the long dead middle a smoothstep would give it, so the
-// travel reads as one continuous circuit rather than as a stall at the halfway mark.
-function easeInOutSine(value: number) {
-  const t = clamp(value, 0, 1);
-  return -(Math.cos(Math.PI * t) - 1) / 2;
-}
-
-function mixPoint(a: Point, b: Point, t: number): Point {
-  return {
-    x: a.x + (b.x - a.x) * t,
-    y: a.y + (b.y - a.y) * t,
-  };
-}
-
-function cubicPoint(a: Point, b: Point, c: Point, d: Point, t: number): Point {
-  const p = 1 - t;
-  return {
-    x: p ** 3 * a.x + 3 * p * p * t * b.x + 3 * p * t * t * c.x + t ** 3 * d.x,
-    y: p ** 3 * a.y + 3 * p * p * t * b.y + 3 * p * t * t * c.y + t ** 3 * d.y,
-  };
-}
-
-function limitedVector(vector: Point, maxLength: number): Point {
-  const length = Math.hypot(vector.x, vector.y);
-  if (length <= maxLength || length === 0) return vector;
-  const scale = maxLength / length;
-  return { x: vector.x * scale, y: vector.y * scale };
-}
 
 // The scene reads the same folding loop as the logo, so both marks show one line at one stage
 // of the fold. Theta stays a plain 0..2PI orbit parameter along the loop.
@@ -122,64 +69,8 @@ function setSceneTwist(twist: number) {
   sceneFrame = makeLoopFrame(twist, 0, true);
 }
 
-// Where the particle meets the loop. The loop keeps its width in the diagram, so the handoff
-// sits at the right end of the line throughout the fold.
-function rightEdgeTheta() {
-  return 0;
-}
-
 function baseLoopPoint(theta: number): Point {
   return sceneFrame.point(theta / TWO_PI);
-}
-
-function baseLoopTangent(theta: number): Point {
-  return sceneFrame.tangent(theta / TWO_PI);
-}
-
-function baseLoopNormal(theta: number): Point {
-  const tangent = baseLoopTangent(theta);
-  return { x: -tangent.y, y: tangent.x };
-}
-
-function baseLoopOutward(theta: number): Point {
-  const base = baseLoopPoint(theta);
-  const radial = { x: base.x - LOOP_CENTER.x, y: base.y - LOOP_CENTER.y };
-  const length = Math.hypot(radial.x, radial.y);
-  if (length > 0.6) return { x: radial.x / length, y: radial.y / length };
-  return baseLoopNormal(theta);
-}
-
-function localPointFromScene(geo: LoopGeometry, point: Point): Point {
-  const scaleX = geo.reach / 17;
-  const scaleY = geo.height / 8;
-  return {
-    x: LOOP_CENTER.x + (point.x - geo.cx) / scaleX,
-    y: LOOP_CENTER.y + (point.y - geo.cy) / scaleY,
-  };
-}
-
-function deformedLoopPoint(theta: number, contactTheta: number, particlePoint: Point, influence: number): Point {
-  const base = baseLoopPoint(theta);
-  const anchor = baseLoopPoint(contactTheta);
-  const pullVector = limitedVector(
-    { x: particlePoint.x - anchor.x, y: particlePoint.y - anchor.y },
-    1.1 * influence,
-  );
-  const tangent = baseLoopTangent(contactTheta);
-  const distance = wrapAngle(theta - contactTheta);
-  // Wide and shallow, so the particle reads as the loop flexing around it rather than as a
-  // dent pressed into an otherwise clean curve.
-  const contact = Math.exp(-(distance * distance) / 0.26);
-  const shoulder = Math.exp(-(distance * distance) / 0.8);
-  const wake = Math.exp(-((distance + 0.38) * (distance + 0.38)) / 0.34);
-  const counterWake = Math.exp(-((distance - 0.34) * (distance - 0.34)) / 0.38);
-  const ripple = (wake - counterWake) * 0.16 * influence;
-  const drag = contact * 0.9 + shoulder * 0.12;
-
-  return {
-    x: base.x + pullVector.x * drag + tangent.x * ripple,
-    y: base.y + pullVector.y * drag + tangent.y * ripple,
-  };
 }
 
 function closedSplinePath(points: Point[]) {
@@ -229,67 +120,16 @@ function openSplinePath(points: Point[]) {
   return commands.join("");
 }
 
-function loopFrame(phase: number, fromDockLocal: Point) {
-  const enterEnd = 0.18;
-  const exitStart = 0.88;
-  const entryTheta = rightEdgeTheta();
-  const rightEdge = baseLoopPoint(entryTheta);
-  const rightOutward = baseLoopOutward(entryTheta);
-  let contactTheta = entryTheta;
-  let influence = 0;
-  let particlePoint = fromDockLocal;
+// The line is drawn as it stands at this point of the fold. Nothing rides along it and nothing
+// pushes it out of shape, so the movement on screen is the fold itself.
+function loopFrame() {
+  const pathPoints = Array.from({ length: LOOP_SAMPLE_COUNT }, (_, index) =>
+    baseLoopPoint((index / LOOP_SAMPLE_COUNT) * TWO_PI),
+  );
 
-  if (phase < enterEnd) {
-    const t = easeOutExpo(phase / enterEnd);
-    const target = {
-      x: rightEdge.x + rightOutward.x * 0.92,
-      y: rightEdge.y + rightOutward.y * 0.92,
-    };
-    particlePoint = cubicPoint(
-      fromDockLocal,
-      mixPoint(fromDockLocal, target, 0.42),
-      { x: target.x + 2.8, y: target.y - 1.2 },
-      target,
-      t,
-    );
-    influence = easeInOut(t) * 0.95;
-  } else if (phase < exitStart) {
-    const t = (phase - enterEnd) / (exitStart - enterEnd);
-    const orbitalEase = easeInOutSine(t);
-    contactTheta = entryTheta + orbitalEase * TWO_PI;
-    const base = baseLoopPoint(contactTheta);
-    const outward = baseLoopOutward(contactTheta);
-    const tangent = baseLoopTangent(contactTheta);
-    const lead = 0.82 + 0.2 * Math.sin(Math.PI * t) + 0.06 * Math.sin(TWO_PI * t * 3);
-    particlePoint = {
-      x: base.x + outward.x * lead + tangent.x * 0.12 * Math.sin(TWO_PI * t * 2),
-      y: base.y + outward.y * lead + tangent.y * 0.12 * Math.sin(TWO_PI * t * 2),
-    };
-    influence = 0.9 + 0.1 * Math.sin(Math.PI * t);
-  } else {
-    const t = easeInOutSine((phase - exitStart) / (1 - exitStart));
-    const start = {
-      x: rightEdge.x + rightOutward.x * 0.92,
-      y: rightEdge.y + rightOutward.y * 0.92,
-    };
-    particlePoint = cubicPoint(
-      start,
-      { x: start.x + 3.2, y: start.y + 1.4 },
-      mixPoint(start, fromDockLocal, 0.48),
-      fromDockLocal,
-      t,
-    );
-    influence = (1 - t) * 0.9;
-  }
-
-  const pathPoints = Array.from({ length: LOOP_SAMPLE_COUNT }, (_, index) => {
-    const theta = (index / LOOP_SAMPLE_COUNT) * TWO_PI;
-    return deformedLoopPoint(theta, contactTheta, particlePoint, influence);
-  });
-
-  // Split the deformed line where it passes through the plane of the page, so the crossing is
-  // drawn as a real over and under rather than as a join. The depth comes from the same fold
-  // the logo uses, read at the matching point along the loop.
+  // Split the line where it passes through the plane of the page, so the crossing is drawn as a
+  // real over and under rather than as a join. The depth comes from the same fold the logo uses,
+  // read at the matching point along the loop.
   const openRuns: Point[][] = [];
   const nearRuns: Point[][] = [];
   let run: Point[] = [];
@@ -308,33 +148,12 @@ function loopFrame(phase: number, fromDockLocal: Point) {
   }
   if (run.length > 1) (runIsFar ? openRuns : nearRuns).push(run);
 
-  const trailPoint = mixPoint(
-    deformedLoopPoint(contactTheta - 0.18, contactTheta, particlePoint, influence),
-    particlePoint,
-    0.28,
-  );
-  const softTrailPoint = mixPoint(
-    deformedLoopPoint(contactTheta - 0.38, contactTheta, particlePoint, influence),
-    particlePoint,
-    0.18,
-  );
-
   return {
     path: closedSplinePath(pathPoints),
     far: openRuns.map(openSplinePath).join(""),
     near: nearRuns.map(openSplinePath).join(""),
-    particlePoint,
-    trailPoint,
-    softTrailPoint,
-    glow: 1.35 + influence * 0.55,
-    core: 0.5 + influence * 0.1,
   };
 }
-
-function setTransform(node: SVGGElement | null, point: Point) {
-  node?.setAttribute("transform", `translate(${point.x.toFixed(2)} ${point.y.toFixed(2)})`);
-}
-
 
 function DockerMark() {
   return (
@@ -361,14 +180,8 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
   const shapeNearRef = useRef<SVGPathElement | null>(null);
   const flowRef = useRef<SVGPathElement | null>(null);
   const highlightRef = useRef<SVGPathElement | null>(null);
-  const particleRef = useRef<SVGGElement | null>(null);
-  const trailRef = useRef<SVGGElement | null>(null);
-  const softTrailRef = useRef<SVGGElement | null>(null);
-  const glowRef = useRef<SVGCircleElement | null>(null);
-  const coreRef = useRef<SVGCircleElement | null>(null);
   const verticalDockLayout = Math.abs(geo.fromDock.x - geo.toDock.x) < 1;
   const iconTransform = loopIconTransform(geo);
-  const fromDockLocal = localPointFromScene(geo, geo.fromDock);
   const leftConnector = verticalDockLayout
     ? `M${geo.toDock.x} ${geo.toDock.y + 30} C${geo.toDock.x - 82} ${geo.toDock.y + 86} ${geo.cx - geo.reach - 42} ${geo.cy - 52} ${geo.cx - geo.reach} ${geo.cy}`
     : `M${geo.toDock.x + 72} ${geo.cy} C${geo.toDock.x + 128} ${geo.cy - 16} ${geo.cx - geo.reach - 70} ${geo.cy + 16} ${geo.cx - geo.reach} ${geo.cy}`;
@@ -381,9 +194,8 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
     function render(now: number) {
-      const phase = reduce ? 0.12 : (now % LOOP_CYCLE_MS) / LOOP_CYCLE_MS;
       setSceneTwist(reduce ? TANGLED_TWIST : twistAt(now));
-      const frame = loopFrame(phase, fromDockLocal);
+      const frame = loopFrame();
 
       [shadowRef.current, liquidRef.current, flowRef.current]
         .forEach((path) => path?.setAttribute("d", frame.path));
@@ -394,12 +206,6 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       casingRef.current?.setAttribute("d", frame.near);
       shapeNearRef.current?.setAttribute("d", frame.near);
       highlightRef.current?.setAttribute("d", frame.near);
-      setTransform(particleRef.current, frame.particlePoint);
-      setTransform(trailRef.current, frame.trailPoint);
-      setTransform(softTrailRef.current, frame.softTrailPoint);
-      glowRef.current?.setAttribute("r", frame.glow.toFixed(2));
-      glowRef.current?.setAttribute("opacity", (0.16 + frame.glow * 0.11).toFixed(2));
-      coreRef.current?.setAttribute("r", frame.core.toFixed(2));
 
       if (!reduce) raf = window.requestAnimationFrame(render);
     }
@@ -420,16 +226,6 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
         <path ref={shapeNearRef} className="loop-core-shape" d={INFINITY_MARK_PATH} />
         <path ref={flowRef} className="loop-core-flow" d={INFINITY_MARK_PATH} />
         <path ref={highlightRef} className="loop-core-highlight" d={INFINITY_MARK_PATH} />
-        <g ref={trailRef} className="loop-particle loop-particle-trail">
-          <circle className="loop-particle-trail-dot" r={geo === desktopGeo ? 0.62 : 0.52} />
-        </g>
-        <g ref={softTrailRef} className="loop-particle loop-particle-trail loop-particle-trail-soft">
-          <circle className="loop-particle-trail-dot" r={geo === desktopGeo ? 0.46 : 0.4} />
-        </g>
-        <g ref={particleRef} className="loop-particle">
-          <circle ref={glowRef} className="loop-particle-glow" r={geo === desktopGeo ? 1.7 : 1.45} />
-          <circle ref={coreRef} className="loop-particle-core" r={geo === desktopGeo ? 0.54 : 0.5} />
-        </g>
       </g>
     </svg>
   );

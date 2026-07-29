@@ -163,8 +163,8 @@ export function makeLoopFrame(twist: number, yaw: number, holdWidth = false): Lo
   };
 }
 
-// One breath every ~11s at the base rate.
-const BASE_RATE = Math.PI / 11000;
+// One breath every ~7s at the base rate.
+const BASE_RATE = Math.PI / 7000;
 // A second term at an incommensurate rate stretches and compresses that breath. The phase
 // still only ever advances, so the loop never reverses into the shape it just left, and the
 // two rates never realign, so no two breaths take the same time and there is no beat to catch.
