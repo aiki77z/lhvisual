@@ -11,10 +11,9 @@ const tangled = makeLoopFrame(TANGLED_TWIST, 0);
 
 export const INFINITY_MARK_PATH = tangled.path;
 
-// One loop of line, folded. Held open it is a ring; folded to the end it is the infinity,
-// crossing once at its centre. The far half of the line is drawn first and the near half over
-// it, so the crossing is a real over and under and the mark reads as a line rather than as a
-// shape being reshaped.
+// One loop of line, turned about its own long axis. The far half of the line is drawn first and
+// the near half over it, both in the one colour, so the mark reads as a single continuous piece
+// of material rather than as two strands of differing weight.
 export function InfinityMark({ size = 30, animate = false, className }: InfinityMarkProps) {
   const backRef = useRef<SVGPathElement | null>(null);
   const frontRef = useRef<SVGPathElement | null>(null);
@@ -49,7 +48,6 @@ export function InfinityMark({ size = 30, animate = false, className }: Infinity
         ref={backRef}
         d={tangled.back}
         stroke="currentColor"
-        strokeOpacity={0.42}
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"

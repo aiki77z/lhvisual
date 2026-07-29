@@ -174,12 +174,8 @@ function LockMark() {
 
 function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: string; viewBox: string }) {
   const shadowRef = useRef<SVGPathElement | null>(null);
-  const liquidRef = useRef<SVGPathElement | null>(null);
   const shapeFarRef = useRef<SVGPathElement | null>(null);
-  const casingRef = useRef<SVGPathElement | null>(null);
   const shapeNearRef = useRef<SVGPathElement | null>(null);
-  const flowRef = useRef<SVGPathElement | null>(null);
-  const highlightRef = useRef<SVGPathElement | null>(null);
   const verticalDockLayout = Math.abs(geo.fromDock.x - geo.toDock.x) < 1;
   const iconTransform = loopIconTransform(geo);
   const leftConnector = verticalDockLayout
@@ -197,15 +193,12 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       setSceneRoll(twistAt(now), reduce ? 0 : yawAt(now));
       const frame = loopFrame();
 
-      [shadowRef.current, liquidRef.current, flowRef.current]
-        .forEach((path) => path?.setAttribute("d", frame.path));
-      // The crossing is drawn as the line passing in front of itself: the far strand first,
-      // dimmed and thinner, then the near strand laid over it. Splitting the bright body of the
-      // line and not just a highlight is what lets the near strand actually hide the far one.
+      shadowRef.current?.setAttribute("d", frame.path);
+      // The crossing is drawn as the line passing in front of itself: the far strand first, then
+      // the near strand laid over it. Both carry the same stroke, so the loop is one unbroken
+      // colour and the depth is read from the order alone.
       shapeFarRef.current?.setAttribute("d", frame.far);
-      casingRef.current?.setAttribute("d", frame.near);
       shapeNearRef.current?.setAttribute("d", frame.near);
-      highlightRef.current?.setAttribute("d", frame.near);
 
       if (!reduce) raf = window.requestAnimationFrame(render);
     }
@@ -220,12 +213,8 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
       <path className="loop-connector loop-connector-right" d={rightConnector} />
       <g transform={iconTransform}>
         <path ref={shadowRef} className="loop-core-shadow" d={INFINITY_MARK_PATH} />
-        <path ref={liquidRef} className="loop-core-liquid" d={INFINITY_MARK_PATH} />
         <path ref={shapeFarRef} className="loop-core-shape loop-core-far" d="" />
-        <path ref={casingRef} className="loop-core-casing" d="" />
         <path ref={shapeNearRef} className="loop-core-shape" d={INFINITY_MARK_PATH} />
-        <path ref={flowRef} className="loop-core-flow" d={INFINITY_MARK_PATH} />
-        <path ref={highlightRef} className="loop-core-highlight" d={INFINITY_MARK_PATH} />
       </g>
     </svg>
   );

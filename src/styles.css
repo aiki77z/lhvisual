@@ -3263,10 +3263,7 @@ tbody tr:hover {
 
 .loop-connector,
 .loop-core-shadow,
-.loop-core-liquid,
-.loop-core-shape,
-.loop-core-flow,
-.loop-core-highlight {
+.loop-core-shape {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -3287,102 +3284,23 @@ tbody tr:hover {
   filter: blur(6px);
 }
 
-.loop-core-liquid {
-  stroke: rgba(112, 214, 226, 0.42);
-  stroke-width: 6.4;
-  opacity: 0.34;
-  mix-blend-mode: screen;
-}
-
+/* One colour for the whole line, near strand and far alike, so the loop reads as a single
+   continuous piece of material. */
 .loop-core-shape {
   stroke: #9cc6ff;
   stroke-width: 4.6;
-  filter:
-    drop-shadow(0 0 9px rgba(101, 172, 255, 0.4))
-    drop-shadow(0 0 22px rgba(87, 204, 210, 0.18));
+  filter: drop-shadow(0 0 10px rgba(101, 172, 255, 0.42));
 }
 
-/* The strand that passes behind at the crossing. It carries the same weight as the near strand
-   so the line keeps one consistent body all the way round; the over and under is read from the
-   casing that cuts it at the crossing, not from fading half the loop into the background. */
-.loop-core-far {
-  stroke-width: 4.4;
-  opacity: 0.82;
-  filter: drop-shadow(0 0 7px rgba(101, 172, 255, 0.28));
-}
-
-/* Only wide enough to clear the near stroke, so it cuts the far strand at the crossing and
-   nowhere else. */
-.loop-core-casing {
-  fill: none;
-  stroke: var(--bg);
-  stroke-width: 6.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.92;
-  vector-effect: non-scaling-stroke;
-}
-
-.loop-core-flow {
-  stroke: rgba(233, 248, 255, 0.86);
-  stroke-width: 1.65;
-  stroke-dasharray: 4 22 12 34;
-  opacity: 0.72;
-  animation: loop-flow 9.2s linear infinite;
-  filter: drop-shadow(0 0 8px rgba(148, 218, 255, 0.48));
-}
-
-.loop-core-highlight {
-  stroke: rgba(238, 247, 255, 0.72);
-  stroke-width: 1.1;
-  opacity: 0.55;
-}
-
-.stage-snapshot .loop-core-shape:not(.loop-core-far) {
+.stage-snapshot .loop-core-shape {
   stroke: #b9d8ff;
-  filter:
-    drop-shadow(0 0 13px rgba(169, 212, 255, 0.55))
-    drop-shadow(0 0 30px rgba(87, 204, 210, 0.26));
+  filter: drop-shadow(0 0 14px rgba(169, 212, 255, 0.55));
 }
 
 .stage-edit .loop-connector-left,
 .stage-verify .loop-connector-right,
 .stage-snapshot .loop-connector {
   opacity: 1;
-}
-
-@keyframes loop-flow {
-  to {
-    stroke-dashoffset: -72;
-  }
-}
-
-@keyframes loop-breathe {
-  0%,
-  100% {
-    stroke-width: 4.35;
-  }
-
-  24%,
-  72% {
-    stroke-width: 5;
-  }
-
-  48% {
-    stroke-width: 4.55;
-  }
-}
-
-@keyframes loop-highlight {
-  0%,
-  100% {
-    opacity: 0.42;
-  }
-
-  30%,
-  72% {
-    opacity: 0.74;
-  }
 }
 
 .infinity-loop-control {
@@ -4668,10 +4586,7 @@ tbody tr:hover {
   .performance-fill,
   .loop-connector,
   .loop-core-shadow,
-  .loop-core-liquid,
   .loop-core-shape,
-  .loop-core-flow,
-  .loop-core-highlight,
   .station-tests i.active,
   .case-dag-edge,
   .case-node-running,
