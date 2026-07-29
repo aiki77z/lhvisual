@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { INFINITY_MARK_PATH } from "../brand/InfinityMark";
-import { TANGLED_TWIST, makeLoopFrame, twistAt } from "../../lib/loopCurve";
+import { TANGLED_TWIST, makeLoopFrame, twistAt, yawAt } from "../../lib/loopCurve";
 
 type Stage = "edit" | "snapshot" | "verify";
 
@@ -63,10 +63,10 @@ const TWO_PI = Math.PI * 2;
 
 // The scene reads the same folding loop as the logo, so both marks show one line at one stage
 // of the fold. Theta stays a plain 0..2PI orbit parameter along the loop.
-let sceneFrame = makeLoopFrame(0, 0, true);
+let sceneFrame = makeLoopFrame(TANGLED_TWIST, 0);
 
-function setSceneTwist(twist: number) {
-  sceneFrame = makeLoopFrame(twist, 0, true);
+function setSceneRoll(twist: number, roll: number) {
+  sceneFrame = makeLoopFrame(twist, roll);
 }
 
 function baseLoopPoint(theta: number): Point {
@@ -194,7 +194,7 @@ function LoopScene({ geo, className, viewBox }: { geo: LoopGeometry; className: 
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
     function render(now: number) {
-      setSceneTwist(reduce ? TANGLED_TWIST : twistAt(now));
+      setSceneRoll(twistAt(now), reduce ? 0 : yawAt(now));
       const frame = loopFrame();
 
       [shadowRef.current, liquidRef.current, flowRef.current]

@@ -3,8 +3,8 @@ export type Point = { x: number; y: number };
 // The mark is one closed loop of line, pinned at its left extreme and turned over at its right,
 // exactly the way a hand makes an infinity out of a rubber band. The turn is a real rotation of
 // the ring about its own long axis, growing from none at the pinned end to half a turn at the
-// turned end. Half a turn is what brings the upper strand under the lower one, so at the end of
-// the travel the line has crossed itself once and the ring has become the infinity.
+// turned end. Half a turn is what brings the upper strand under the lower one, so the line has
+// crossed itself once and the ring has become the infinity.
 //
 //   a(t)  = w * PI * ( 1 + cos t ) / 2      the turn, none at the left end, half a turn at right
 //   y(t)  = sin t * cos a(t)                the strand swinging through the page
@@ -12,12 +12,12 @@ export type Point = { x: number; y: number };
 //
 // Because y and z are one rotation of the same swing, the line keeps its length and is never
 // stretched or pinched: only its plane turns. The crossing is therefore a real over and under
-// with genuine depth rather than a waist drawn to meet itself, and w carries the loop from the
-// ring at 0 to the finished mark at 1 without any blend between two different shapes.
+// with genuine depth rather than a waist drawn to meet itself.
 //
-// The turn is anchored at one end, so the loop is its own mirror top to bottom at every stage
-// but not left to right until it arrives. That is the true shape of folding a ring once, and it
-// is what lets the finished mark be a clean infinity instead of a pinched waist.
+// The mark is held at the finished infinity and the whole of it is then turned about its long
+// axis. A whole turn puts every point back where it started, so the movement closes on itself
+// and carries straight on into the next turn: it advances for ever in one direction, with no end
+// to settle into and nothing to reverse out of.
 
 const CENTER_X = 21;
 const CENTER_Y = 16;
@@ -26,8 +26,6 @@ const CENTER_Y = 16;
 // instead of shrinking to a dot at one end of the breath.
 const TANGLED_HALF_WIDTH = 17;
 const TANGLED_HALF_HEIGHT = 8;
-const RELEASED_HALF_WIDTH = 11.5;
-const RELEASED_HALF_HEIGHT = 9.6;
 
 const TWO_PI = Math.PI * 2;
 const SAMPLES = 240;
@@ -41,19 +39,30 @@ export const TANGLED_TWIST = 1;
 
 type Spatial = { x: number; y: number; z: number };
 
+// The extent of the mark measured over a whole turn rather than at rest. Held to a constant
+// scale the mark keeps one size as it rotates, and taking the widest reach of the whole turn
+// means the lobes never grow past the box when they swing broadside to the eye.
+const REST_MAX_X = 1.002;
+const REST_MAX_Y = 1.002;
+
 function twistedPoint(t: number, twist: number): Spatial {
   const swing = Math.sin(t);
   const turn = (twist * Math.PI * (1 + Math.cos(t))) / 2;
   return { x: Math.cos(t), y: swing * Math.cos(turn), z: swing * Math.sin(turn) };
 }
 
-function project(p: Spatial, yaw: number) {
-  const c = Math.cos(yaw);
-  const s = Math.sin(yaw);
-  const x = p.x * c + p.z * s;
-  const z = p.z * c - p.x * s;
+// Turns the finished mark about its own long axis. The x axis runs the length of the mark and is
+// left alone, so the silhouette keeps its full width all the way round; what turns is the plane
+// the two lobes lie in, which trades which lobe is nearer the eye and carries the crossing over
+// and under. A whole turn returns every point to where it began, so the travel closes on itself
+// exactly and can advance for ever without reversing or jumping at the seam.
+function project(p: Spatial, roll: number) {
+  const c = Math.cos(roll);
+  const s = Math.sin(roll);
+  const y = p.y * c - p.z * s;
+  const z = p.z * c + p.y * s;
   const k = FOCAL / (FOCAL - z);
-  return { x: x * k, y: p.y * k, z };
+  return { x: p.x * k, y: y * k, z };
 }
 
 export type LoopFrame = {
@@ -91,35 +100,27 @@ function spline(points: Point[], closed: boolean) {
   return closed ? `${commands.join("")}Z` : commands.join("");
 }
 
-// The loop is drawn wide when tangled and draws in as it releases, so the box it is fitted
-// into travels with the shape. The diagram spans two fixed docks, so it passes holdWidth to
-// keep the loop meeting its connectors at every point of the breath.
-export function makeLoopFrame(twist: number, yaw: number, holdWidth = false): LoopFrame {
+// The mark keeps one size as it turns, so the box it is fitted into is fixed rather than
+// measured per frame.
+export function makeLoopFrame(twist: number, roll: number): LoopFrame {
   const raw: { x: number; y: number; z: number }[] = [];
-  let maxX = 1e-6;
-  let maxY = 1e-6;
 
   for (let index = 0; index < SAMPLES; index += 1) {
-    const p = project(twistedPoint((index / SAMPLES) * TWO_PI, twist), yaw);
-    raw.push(p);
-    maxX = Math.max(maxX, Math.abs(p.x));
-    maxY = Math.max(maxY, Math.abs(p.y));
+    raw.push(project(twistedPoint((index / SAMPLES) * TWO_PI, twist), roll));
   }
 
-  const open = 1 - Math.min(1, Math.max(0, twist / TANGLED_TWIST));
-  const halfWidth = holdWidth
-    ? TANGLED_HALF_WIDTH
-    : TANGLED_HALF_WIDTH + (RELEASED_HALF_WIDTH - TANGLED_HALF_WIDTH) * open;
-  const halfHeight = TANGLED_HALF_HEIGHT + (RELEASED_HALF_HEIGHT - TANGLED_HALF_HEIGHT) * open;
-  const scaleX = halfWidth / maxX;
-  const scaleY = halfHeight / maxY;
+  // Rescaling the loop to fill its box on every frame would stretch the shape back out as it
+  // turned away from the eye, and the turn would read as a shape being squashed and pulled
+  // rather than as a solid mark rotating in depth.
+  const scaleX = TANGLED_HALF_WIDTH / REST_MAX_X;
+  const scaleY = TANGLED_HALF_HEIGHT / REST_MAX_Y;
 
   const toScreen = (p: { x: number; y: number }) => ({
     x: CENTER_X + p.x * scaleX,
     y: CENTER_Y + p.y * scaleY,
   });
 
-  const point = (u: number) => toScreen(project(twistedPoint(u * TWO_PI, twist), yaw));
+  const point = (u: number) => toScreen(project(twistedPoint(u * TWO_PI, twist), roll));
   const tangent = (u: number) => {
     const step = 1 / SAMPLES;
     const a = point(u - step);
@@ -151,7 +152,7 @@ export function makeLoopFrame(twist: number, yaw: number, holdWidth = false): Lo
   }
   if (run.length > 1) (runIsBack ? backRuns : frontRuns).push(run);
 
-  const depth = (u: number) => project(twistedPoint(u * TWO_PI, twist), yaw).z;
+  const depth = (u: number) => project(twistedPoint(u * TWO_PI, twist), roll).z;
 
   return {
     path: spline(screen, true),
@@ -163,32 +164,19 @@ export function makeLoopFrame(twist: number, yaw: number, holdWidth = false): Lo
   };
 }
 
-// One breath every ~7s at the base rate.
-const BASE_RATE = Math.PI / 7000;
-// A second term at an incommensurate rate stretches and compresses that breath. The phase
-// still only ever advances, so the loop never reverses into the shape it just left, and the
-// two rates never realign, so no two breaths take the same time and there is no beat to catch.
-const DRIFT_RATIO = 0.618;
-const DRIFT_DEPTH = 0.42;
-// How much of the breath is spent at the finished mark. The infinity is what the site is named
-// for, so the loop rests there and only passes through the open ring on its way back.
-const DWELL = 0.62;
+// One whole turn every ~7s.
+const ROLL_PERIOD_MS = 7000;
 
-// Returns 0 at the ring and TANGLED_TWIST at the infinity. The cosine turns the advancing phase
-// around smoothly at each end, so the loop settles into both states and leaves them without a
-// corner. Raising the settled value to a power under one holds the travel near the finished mark
-// and hurries it through the open ring, so the loop reads as an infinity that breathes rather
-// than as a ring and a mark given equal billing.
-export function twistAt(elapsedMs: number) {
-  const turn = BASE_RATE * elapsedMs;
-  const phase = turn + DRIFT_DEPTH * Math.sin(turn * DRIFT_RATIO);
-  const settled = (1 - Math.cos(phase)) / 2;
-  return Math.pow(settled, 1 - DWELL) * TANGLED_TWIST;
+// The mark is held at the infinity and never unfolds, so it is always the shape the site is
+// named for. The movement is the turn alone.
+export function twistAt(_elapsedMs: number) {
+  return TANGLED_TWIST;
 }
 
-// The turn is carried out of the page by the rotation itself, so the loop already shows its
-// depth head on. Swinging the viewpoint as well would tip the finished mark off its axis and
-// cost the level footing the wordmark sits on.
-export function yawAt(_elapsedMs: number) {
-  return 0;
+// The angle only ever advances, and a whole turn puts every point back where it started, so the
+// travel joins up with itself and carries straight on into the next turn. There is no end to
+// ease into and nothing to reverse out of, which is what makes the movement continuous rather
+// than a swing that runs out and comes back.
+export function yawAt(elapsedMs: number) {
+  return ((elapsedMs % ROLL_PERIOD_MS) / ROLL_PERIOD_MS) * TWO_PI;
 }
