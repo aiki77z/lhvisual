@@ -9,7 +9,11 @@ function normalizeBasePath(value: string) {
     : `${withLeadingSlash}/`;
 }
 
-export const siteBasePath = normalizeBasePath(import.meta.env.BASE_URL);
+const viteEnv = (typeof import.meta !== "undefined" && import.meta.env)
+  ? import.meta.env
+  : undefined;
+
+export const siteBasePath = normalizeBasePath(viteEnv?.BASE_URL || "/");
 
 export function getCurrentAppPath(pathname = window.location.pathname) {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";

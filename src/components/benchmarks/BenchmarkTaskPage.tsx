@@ -42,25 +42,6 @@ function pickDefaultNode(task: BenchmarkTaskDetail) {
   })[0];
 }
 
-function formatMinutes(value: number) {
-  if (!value) {
-    return "n/a";
-  }
-  if (value < 60) {
-    return `${value} min`;
-  }
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
-}
-
-function formatSeconds(value: number) {
-  if (!value) {
-    return "n/a";
-  }
-  return Number.isInteger(value) ? `${value}s` : `${value.toFixed(1)}s`;
-}
-
 function splitInstructionBlocks(instruction: string) {
   return toPlainDisplayText(instruction)
     .split(/\n\s*\n/)
@@ -165,19 +146,8 @@ export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
     .filter((node): node is ModuleDagNode => Boolean(node));
 
   const structureFacts = [
-    { label: "Modules", value: task.moduleDag.nodeCount.toLocaleString() },
-    { label: "Module layers", value: task.moduleDag.layerCount.toLocaleString() },
     { label: "Units", value: task.unitDag.totalUnits.toLocaleString() },
-    { label: "Test-coupled units", value: task.unitDag.testedUnits.toLocaleString() },
-    { label: "Expert time", value: formatMinutes(task.expertTimeEstimateMin) },
-    { label: "Junior time", value: formatMinutes(task.juniorTimeEstimateMin) },
-  ];
-
-  const executionFacts = [
-    { label: "Parser", value: task.parserName },
-    { label: "Agent timeout", value: formatSeconds(task.maxAgentTimeoutSec) },
-    { label: "Test timeout", value: formatSeconds(task.maxTestTimeoutSec) },
-    { label: "Same shell tests", value: task.runTestsInSameShell ? "Yes" : "No" },
+    { label: "Layers", value: task.unitDag.layerCount.toLocaleString() },
     { label: "Files represented", value: task.moduleDag.moduleFilesTotal.toLocaleString() },
     { label: "LOC represented", value: task.moduleDag.moduleLocTotal.toLocaleString() },
   ];
@@ -259,14 +229,6 @@ export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
             ))}
           </div>
 
-          <div className="registry-fact-grid registry-fact-grid-secondary">
-            {executionFacts.map((item) => (
-              <div className="registry-fact" key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
-            ))}
-          </div>
         </section>
 
         <section className="registry-detail-section">
@@ -327,8 +289,7 @@ export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
             <article className="registry-info-box">
               <h3 className="registry-subsection-title">Unit-layer depth</h3>
               <p className="registry-detail-note">
-                Each bar represents one unit-DAG layer. The full column is total units in that layer; the brighter
-                overlay marks the subset with direct tests.
+                Each bar represents one unit-DAG layer and shows how the units distribute across the task depth.
               </p>
               <DagLayerBars layers={task.unitDag.layers} />
             </article>
@@ -381,12 +342,6 @@ export function BenchmarkTaskPage({ taskId }: BenchmarkTaskPageProps) {
             </div>
           </section>
         ) : null}
-
-        <section className="registry-detail-section">
-          <h2 className="registry-detail-heading">Created by</h2>
-          <p className="registry-detail-note">{task.authorName}</p>
-          {task.authorEmail ? <p className="registry-detail-note">{task.authorEmail}</p> : null}
-        </section>
       </div>
     </div>
   );

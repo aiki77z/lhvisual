@@ -27,12 +27,7 @@ export function DagLayerBars({ layers, compact = false }: DagLayerBarsProps) {
                   <span className="dag-bars-tested" style={{ height: `${testedHeight}px` }} />
                 ) : null}
               </div>
-              {!compact ? (
-                <span className="dag-bars-label">
-                  L{layer.layer}
-                  <small>{layer.testedUnitCount.toLocaleString()} tested</small>
-                </span>
-              ) : null}
+              {!compact ? <span className="dag-bars-label">L{layer.layer}</span> : null}
             </div>
           );
         })}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections import Counter, defaultdict, deque
 from pathlib import Path
@@ -10,14 +11,175 @@ from statistics import median
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_TASKS_ROOT = REPO_ROOT.parent / "tasks"
-OUTPUT_ROOT = REPO_ROOT / "public" / "benchmarks-data"
-TASKS_OUTPUT_ROOT = OUTPUT_ROOT / "tasks"
-REPO_URL = "https://github.com/microsoft/Loopsbench"
+DEFAULT_OUTPUT_ROOT = REPO_ROOT / "public" / "benchmarks-data"
+DEFAULT_REPO_URL = "https://github.com/microsoft/Loopsbench"
+DISPLAY_TITLE_OVERRIDES_PATH = REPO_ROOT / "scripts" / "benchmark_display_titles.yaml"
+CJK_RE = re.compile(r"[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]")
+DISPLAY_TEXT_REPLACEMENTS = (
+    (
+        'Some directory names are in Simplified Chinese (e.g., `\u5b9e\u9a8c\u7b54\u6848/\u5b9e\u9a8c\u4e8c/` means "Lab Answers / Experiment 2"); treat them as opaque path components and use the exact paths listed below.',
+        "The repository keeps the original source directory layout; the benchmark page uses English display aliases for those paths.",
+    ),
+    ("\u5b9e\u9a8c\u7b54\u6848/\u5b9e\u9a8c\u4e8c/", "lab_answers/experiment_2/"),
+    ("\u5b9e\u9a8c\u7b54\u6848/\u5b9e\u9a8c\u4e09/", "lab_answers/experiment_3/"),
+    (
+        '1. MySQL - \u6570\u636e\u5e93\u3001\u8868\u4e0e\u5b8c\u6574\u6027\u7ea6\u675f\u7684\u5b9a\u4e49(Create)/',
+        "1. MySQL - database_table_and_constraint_definition_create/",
+    ),
+    (
+        '2. MySQL - \u8868\u7ed3\u6784\u4e0e\u5b8c\u6574\u6027\u7ea6\u675f\u7684\u4fee\u6539(ALTER)/',
+        "2. MySQL - table_structure_and_constraint_modification_alter/",
+    ),
+    ("3. MySQL - \u6570\u636e\u67e5\u8be2(Select)/", "3. MySQL - data_queries_select/"),
+    ("4. MySQL - \u6570\u636e\u7684\u63d2\u5165\u3001\u4fee\u6539\u4e0e\u5220\u9664/", "4. MySQL - data_insertion_update_and_deletion/"),
+    ("5. MySQL - \u89c6\u56fe/", "5. MySQL - views/"),
+    ("6. MySQL - \u5b58\u50a8\u8fc7\u7a0b\u4e0e\u4e8b\u52a1/", "6. MySQL - stored_procedures_and_transactions/"),
+    ("6. MySQL - \u5b58\u50a8\u8fc7\u7a0b\u4e0e\u4e8b\u52d9/", "6. MySQL - stored_procedures_and_transactions/"),
+    ("7. MySQL - \u89e6\u53d1\u5668/", "7. MySQL - triggers/"),
+    ("8. MySQL - \u7528\u6237\u81ea\u5b9a\u4e49\u51fd\u6570/", "8. MySQL - user_defined_functions/"),
+    ("MySQL - \u6570\u636e\u67e5\u8be2(Select)\u4e4b\u4e8c/", "MySQL - advanced_data_queries_select_part_2/"),
+    ("Advanced SELECT Queries (\u6570\u636e\u67e5\u8be2\u4e4b\u4e8c)", "Advanced SELECT Queries (Part 2)"),
+    ('"\u767b\u5f55\u6210\u529f"', '"login succeeded"'),
+    ('"\u767b\u5f55\u5931\u8d25"', '"login failed"'),
+    ('"\u4fee\u6539\u5bc6\u7801\u6210\u529f"', '"password updated successfully"'),
+    ('"\u6210\u7ee9\u4fee\u6539\u6210\u529f\uff01"', '"grade updated successfully!"'),
+    ('"\u6210\u7ee9\u4fee\u6539\u5931\u8d25\uff01"', '"grade update failed!"'),
+    ('"\u4fee\u6539\u6210\u529f\uff01"', '"update succeeded!"'),
+    ('"\u4fee\u6539\u5931\u8d25\uff01"', '"update failed!"'),
+    ('"\u6dfb\u52a0\u9898\u76ee\u6210\u529f"', '"question added successfully"'),
+    ('"\u83b7\u53d6\u9898\u5e93\u6210\u529f"', '"question bank loaded successfully"'),
+    ('"\u9898\u53f7"', '"topicId"'),
+    ('"\u5b66\u751f"', '"student"'),
+    ('"\u6559\u5e08"', '"teacher"'),
+)
+TITLE_ACRONYMS = {
+    "afl": "AFL",
+    "ansible": "Ansible",
+    "bpf": "BPF",
+    "cpa": "CPA",
+    "cvc": "CVC",
+    "dafny": "Dafny",
+    "db": "DB",
+    "django": "Django",
+    "echarts": "ECharts",
+    "evosuite": "EvoSuite",
+    "frama": "Frama",
+    "gem5": "gem5",
+    "godot": "Godot",
+    "jenkins": "Jenkins",
+    "jpf": "JPF",
+    "ligra": "Ligra",
+    "linux011": "Linux 0.11",
+    "llvm": "LLVM",
+    "lsm": "LSM",
+    "mininet": "Mininet",
+    "ml": "ML",
+    "mlir": "MLIR",
+    "mlsys": "MLSys",
+    "monogame": "MonoGame",
+    "mysql": "MySQL",
+    "navidrome": "Navidrome",
+    "nodebb": "NodeBB",
+    "numpy": "NumPy",
+    "os": "OS",
+    "rdma": "RDMA",
+    "riscv": "RISC-V",
+    "rustlike": "Rust-like",
+    "scotty3d": "Scotty3D",
+    "seg": "Segment",
+    "smt": "SMT",
+    "souffle": "Souffle",
+    "sysy": "SysY",
+    "tcp": "TCP",
+    "typescript": "TypeScript",
+}
+BOILERPLATE_PREFIXES = (
+    "you are an autonomous engineer.",
+    "the repository at /workspace is at an earlier state of a real-world project.",
+    "your working directory is /workspace.",
+    "your working directory is `/workspace`.",
+    "the project code is already present.",
+    "the project code is already present under",
+    "the full source tree is already present under",
+    "implement the following modules:",
+    "the following modules need to be implemented",
+    "the tests also depend on these signatures and entry points:",
+    "the following functions are called directly by the test suite.",
+)
+
+
+def _default_tasks_root() -> Path:
+    candidates = (
+        REPO_ROOT.parent / "tasks",
+        REPO_ROOT.parent.parent / "tasks",
+        Path("/sdb-disk/lih/lh/tasks"),
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
+DEFAULT_TASKS_ROOT = _default_tasks_root()
+
+
+def _tasks_root() -> Path:
+    return Path(os.environ.get("LOOPSBENCH_BENCHMARK_TASKS_ROOT", DEFAULT_TASKS_ROOT)).resolve()
+
+
+def _output_root() -> Path:
+    return Path(
+        os.environ.get("LOOPSBENCH_BENCHMARK_OUTPUT_ROOT", DEFAULT_OUTPUT_ROOT)
+    ).resolve()
+
+
+def _repo_url() -> str:
+    value = os.environ.get("LOOPSBENCH_BENCHMARK_REPO_URL", DEFAULT_REPO_URL).strip()
+    return value or DEFAULT_REPO_URL
+
+
+def _load_display_title_overrides() -> dict[str, str]:
+    loaded = yaml.safe_load(DISPLAY_TITLE_OVERRIDES_PATH.read_text(encoding="utf-8")) or {}
+    return {str(key): str(value).strip() for key, value in loaded.items() if str(value).strip()}
 
 
 def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
+
+
+def _rewrite_display_text(value: str) -> str:
+    rewritten = value
+    for source, target in DISPLAY_TEXT_REPLACEMENTS:
+        rewritten = rewritten.replace(source, target)
+    return rewritten
+
+
+def _rewrite_display_value(value):
+    if isinstance(value, dict):
+        return {key: _rewrite_display_value(inner) for key, inner in value.items()}
+    if isinstance(value, list):
+        return [_rewrite_display_value(inner) for inner in value]
+    if isinstance(value, str):
+        return _rewrite_display_text(value)
+    return value
+
+
+def _find_cjk_paths(value, context: str = "root"):
+    if isinstance(value, dict):
+        for key, inner in value.items():
+            yield from _find_cjk_paths(inner, f"{context}.{key}")
+    elif isinstance(value, list):
+        for index, inner in enumerate(value):
+            yield from _find_cjk_paths(inner, f"{context}[{index}]")
+    elif isinstance(value, str) and CJK_RE.search(value):
+        yield context, value
+
+
+def _assert_no_cjk(value, *, context: str) -> None:
+    hits = list(_find_cjk_paths(value, context))
+    if hits:
+        preview = "; ".join(f"{path}={snippet[:120]!r}" for path, snippet in hits[:5])
+        raise SystemExit(f"CJK text remains in generated benchmark payload: {preview}")
 
 
 def _plain_text(value: str) -> str:
@@ -35,14 +197,85 @@ def _plain_text(value: str) -> str:
 
 
 def _pick_instruction_preview(instruction: str) -> str:
+    return _truncate_summary(_pick_instruction_summary(instruction), max_length=220)
+
+
+def _pick_instruction_summary(instruction: str) -> str:
+    blocks = _meaningful_instruction_blocks(instruction)
+    if not blocks:
+        return _truncate_summary(_normalize_text(_plain_text(instruction)))
+
+    summary = blocks[0]
+    if len(summary) < 140 and len(blocks) > 1:
+        candidate = f"{summary} {blocks[1]}"
+        if len(candidate) <= 360:
+            return _truncate_summary(candidate)
+    return _truncate_summary(summary)
+
+
+def _is_boilerplate_block(value: str) -> bool:
+    lowered = value.lower()
+    return any(lowered.startswith(prefix) for prefix in BOILERPLATE_PREFIXES)
+
+
+def _meaningful_instruction_blocks(instruction: str) -> list[str]:
+    meaningful: list[str] = []
     blocks = [block.strip() for block in re.split(r"\n\s*\n", instruction.strip()) if block.strip()]
     for block in blocks:
         normalized = _normalize_text(_plain_text(block))
-        if normalized.lower().startswith("you are an autonomous engineer."):
+        if not normalized or _is_boilerplate_block(normalized):
             continue
-        if normalized:
-            return normalized
-    return _normalize_text(_plain_text(instruction))
+        meaningful.append(normalized)
+    return meaningful
+
+
+def _humanize_task_name(value: str) -> str:
+    normalized = re.sub(r"^task_", "", value).strip("_")
+    if not normalized:
+        return value
+
+    normalized = re.sub(r"[_-]+", " ", normalized)
+    humanized: list[str] = []
+
+    for token in normalized.split():
+        lower = token.lower()
+        if lower in TITLE_ACRONYMS:
+            humanized.append(TITLE_ACRONYMS[lower])
+        elif token.isdigit():
+            humanized.append(token)
+        elif re.fullmatch(r"seg\d+", lower):
+            humanized.append(f"Segment {token[3:]}")
+        elif re.search(r"[A-Z]", token[1:]):
+            humanized.append(token)
+        else:
+            humanized.append(token.capitalize())
+
+    return " ".join(humanized)
+
+
+DISPLAY_TITLE_OVERRIDES = _load_display_title_overrides()
+
+
+def _truncate_summary(value: str, *, max_length: int = 280) -> str:
+    normalized = _normalize_text(value)
+    if len(normalized) <= max_length:
+        return normalized
+
+    sentences = [sentence.strip() for sentence in re.split(r"(?<=[.!?])\s+", normalized) if sentence.strip()]
+    collected: list[str] = []
+    for sentence in sentences:
+        candidate = " ".join(collected + [sentence]).strip()
+        if len(candidate) > max_length:
+            break
+        collected.append(sentence)
+        if len(candidate) >= int(max_length * 0.7):
+            return candidate
+
+    if collected:
+        return " ".join(collected)
+
+    trimmed = normalized[: max_length + 1].rsplit(" ", 1)[0].rstrip(",;:")
+    return f"{trimmed}…"
 
 
 def _safe_author_name(task: dict) -> str:
@@ -156,7 +389,7 @@ def _compute_unit_layer_stats(unit_dag: dict) -> tuple[list[dict], int]:
     return [layers[key] for key in sorted(layers)], tested_units
 
 
-def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
+def _build_task_payload(task_dir: Path, *, repo_url: str) -> tuple[dict, dict]:
     task_yaml = yaml.safe_load((task_dir / "task.yaml").read_text(encoding="utf-8"))
     module_dag = yaml.safe_load((task_dir / "module_dag.yaml").read_text(encoding="utf-8"))
     unit_dag = json.loads((task_dir / "unit_dag.json").read_text(encoding="utf-8"))
@@ -195,28 +428,32 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
         for edge in module_edges_raw
     ]
 
-    title = _normalize_text(_plain_text(str(module_dag.get("project") or task_yaml.get("task_name") or task_dir.name)))
-    summary = _normalize_text(_plain_text(str(module_dag.get("description") or ""))) or _pick_instruction_preview(
-        str(task_yaml.get("instruction") or "")
-    )
-    instruction = _plain_text(str(task_yaml.get("instruction") or ""))
+    task_name = str(task_yaml.get("task_name") or task_dir.name)
+    title = DISPLAY_TITLE_OVERRIDES.get(task_dir.name) or _normalize_text(
+        _plain_text(str(module_dag.get("project") or ""))
+    ) or _humanize_task_name(task_name)
+    instruction_raw = str(task_yaml.get("instruction") or "")
+    instruction = _plain_text(instruction_raw)
+    summary = _pick_instruction_summary(instruction)
+    instruction_preview = _pick_instruction_preview(instruction)
+    module_description = _normalize_text(_plain_text(str(module_dag.get("description") or ""))) or summary
     tags = [str(tag) for tag in task_yaml.get("tags", []) if str(tag).strip()]
     module_loc_total = sum(node["loc"] for node in module_nodes)
     module_files_total = sum(node["filesCount"] for node in module_nodes)
 
     detail = {
         "id": task_dir.name,
-        "taskName": str(task_yaml.get("task_name") or task_dir.name),
+        "taskName": task_name,
         "title": title,
         "summary": summary,
-        "instructionPreview": _pick_instruction_preview(instruction),
-        "instruction": instruction,
+        "instructionPreview": instruction_preview,
+        "instruction": instruction_raw,
         "category": str(task_yaml.get("category") or "unknown"),
         "difficulty": str(task_yaml.get("difficulty") or "unknown"),
         "tags": tags,
         "authorName": _safe_author_name(task_yaml),
         "authorEmail": _safe_author_email(task_yaml),
-        "repoUrl": f"{REPO_URL}/tree/main/tasks/{task_dir.name}",
+        "repoUrl": f"{repo_url}/tree/main/tasks/{task_dir.name}",
         "taskPath": f"tasks/{task_dir.name}",
         "parserName": str(task_yaml.get("parser_name") or "unknown"),
         "maxAgentTimeoutSec": int(task_yaml.get("max_agent_timeout_sec") or 0),
@@ -226,7 +463,7 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
         "juniorTimeEstimateMin": int(task_yaml.get("junior_time_estimate_min") or 0),
         "moduleDag": {
             "project": title,
-            "description": summary,
+            "description": module_description,
             "nodeCount": len(module_nodes),
             "edgeCount": len(module_edges),
             "layerCount": len(module_layers),
@@ -245,6 +482,8 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
             "layers": unit_layers,
         },
     }
+    detail = _rewrite_display_value(detail)
+    _assert_no_cjk(detail, context=f"detail:{task_dir.name}")
 
     summary_entry = {
         "id": detail["id"],
@@ -280,19 +519,27 @@ def _build_task_payload(task_dir: Path) -> tuple[dict, dict]:
             "unitLayers": detail["unitDag"]["layers"],
         },
     }
+    summary_entry = _rewrite_display_value(summary_entry)
+    _assert_no_cjk(summary_entry, context=f"summary:{task_dir.name}")
 
     return summary_entry, detail
 
 
 def main() -> None:
-    tasks_root = DEFAULT_TASKS_ROOT
+    tasks_root = _tasks_root()
+    output_root = _output_root()
+    tasks_output_root = output_root / "tasks"
+    repo_url = _repo_url()
     if not tasks_root.exists():
         raise SystemExit(f"Tasks root not found: {tasks_root}")
 
-    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    TASKS_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
+    tasks_output_root.mkdir(parents=True, exist_ok=True)
 
     task_dirs = sorted(path for path in tasks_root.iterdir() if path.is_dir() and path.name.startswith("task_"))
+    missing_titles = [task_dir.name for task_dir in task_dirs if task_dir.name not in DISPLAY_TITLE_OVERRIDES]
+    if missing_titles:
+        raise SystemExit("Missing curated benchmark display titles for: " + ", ".join(missing_titles))
 
     summaries: list[dict] = []
     category_counts: Counter[str] = Counter()
@@ -304,7 +551,7 @@ def main() -> None:
     module_layers: list[int] = []
 
     for task_dir in task_dirs:
-        summary, detail = _build_task_payload(task_dir)
+        summary, detail = _build_task_payload(task_dir, repo_url=repo_url)
         summaries.append(summary)
         category_counts[summary["category"]] += 1
         difficulty_counts[summary["difficulty"]] += 1
@@ -314,7 +561,7 @@ def main() -> None:
         unit_layers.append(summary["unitLayerCount"])
         module_layers.append(summary["moduleLayerCount"])
 
-        (TASKS_OUTPUT_ROOT / f"{task_dir.name}.json").write_text(
+        (tasks_output_root / f"{task_dir.name}.json").write_text(
             json.dumps(detail, ensure_ascii=False, separators=(",", ":")),
             encoding="utf-8",
         )
@@ -350,13 +597,14 @@ def main() -> None:
         },
         "tasks": summaries,
     }
+    _assert_no_cjk(index_payload, context="index")
 
-    (OUTPUT_ROOT / "index.json").write_text(
+    (output_root / "index.json").write_text(
         json.dumps(index_payload, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
 
-    print(f"Wrote {len(summaries)} task summaries to {OUTPUT_ROOT}")
+    print(f"Wrote {len(summaries)} task summaries to {output_root}")
 
 
 if __name__ == "__main__":
