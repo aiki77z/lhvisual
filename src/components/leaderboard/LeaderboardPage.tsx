@@ -1,6 +1,70 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { leaderboardEntries, sweeps, type SweepName } from "../../data/leaderboard";
+import {
+  difficultyBuckets,
+  leaderboardEntries,
+  sweeps,
+  type DifficultyName,
+  type LeaderboardEntry,
+  type SweepName,
+} from "../../data/leaderboard";
 import { LeaderboardTable } from "./LeaderboardTable";
+
+function entryLabel(entry: LeaderboardEntry, sweep: SweepName) {
+  return sweep === "model" ? entry.model : entry.loop;
+}
+
+function difficultyScore(entry: LeaderboardEntry, difficulty: DifficultyName) {
+  return entry.difficultyScores.find((score) => score.difficulty === difficulty);
+}
+
+function DifficultyScoreCharts({ entries, sweep }: { entries: LeaderboardEntry[]; sweep: SweepName }) {
+  const maxScore = Math.max(
+    1,
+    ...entries.flatMap((entry) => entry.difficultyScores.map((score) => score.rr)),
+  );
+
+  return (
+    <section className="difficulty-score-section" aria-label="Resolve rate by task difficulty">
+      <div className="section-heading">
+        <h2>Difficulty breakdown</h2>
+        <p>{sweep === "model" ? "Models" : "Agents"} scored separately on easy, medium, and hard tasks</p>
+      </div>
+
+      <div className="difficulty-chart-grid">
+        {difficultyBuckets.map((bucket) => (
+          <article className="difficulty-chart-card" key={bucket.id}>
+            <header>
+              <div>
+                <h3>{bucket.label}</h3>
+                <p>{bucket.total} tasks</p>
+              </div>
+              <span>RR w/ loop</span>
+            </header>
+
+            <div className="difficulty-bars">
+              {entries.map((entry) => {
+                const score = difficultyScore(entry, bucket.id);
+                const value = score?.rr ?? 0;
+                return (
+                  <div className="difficulty-bar-row" key={`${bucket.id}-${entry.id}`}>
+                    <span className="difficulty-bar-label">{entryLabel(entry, sweep)}</span>
+                    <div className="difficulty-bar-track" aria-hidden="true">
+                      <span style={{ width: `${Math.max(2, (value / maxScore) * 100)}%` }} />
+                    </div>
+                    <strong>{value.toFixed(1)}%</strong>
+                    <small>
+                      {score?.resolved ?? 0}/{score?.total ?? bucket.total}
+                    </small>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export function LeaderboardPage() {
   const [sweep, setSweep] = useState<SweepName>("model");
@@ -25,10 +89,10 @@ export function LeaderboardPage() {
   const top = entries[0];
 
   const summary = [
-    { label: "Top resolve rate", value: `${top.rrLoop.toFixed(2)}%`, detail: top.model },
+    { label: "Top resolve rate", value: `${top.rrLoop.toFixed(2)}%`, detail: entryLabel(top, sweep) },
     { label: "Systems", value: `${entries.length}`, detail: "evaluated configurations" },
     { label: "Tasks", value: "112", detail: "full release" },
-    { label: "Dev units", value: "5,300+", detail: "across 8 languages" },
+    { label: "Difficulty split", value: "3", detail: "easy / medium / hard" },
   ];
 
   return (
@@ -82,8 +146,10 @@ export function LeaderboardPage() {
           <h2>{sweeps.find((s) => s.id === sweep)?.label}</h2>
           <p>{entries.length} configurations</p>
         </div>
-        <LeaderboardTable entries={entries} />
+        <LeaderboardTable entries={entries} sweep={sweep} />
       </section>
+
+      <DifficultyScoreCharts entries={entries} sweep={sweep} />
     </div>
   );
 }

@@ -2545,6 +2545,10 @@ tbody tr:hover {
   color: var(--accent);
 }
 
+.muted-table-value {
+  color: var(--muted);
+}
+
 .rank-badge {
   display: inline-flex;
   min-width: 22px;
@@ -2675,6 +2679,111 @@ tbody tr:hover {
   max-width: 680px;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.difficulty-score-section {
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.difficulty-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.difficulty-chart-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 28%),
+    rgba(8, 11, 20, 0.66);
+}
+
+.difficulty-chart-card header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.difficulty-chart-card h3,
+.difficulty-chart-card p {
+  margin: 0;
+}
+
+.difficulty-chart-card h3 {
+  font-family: var(--display);
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+.difficulty-chart-card p,
+.difficulty-chart-card header > span,
+.difficulty-bar-label,
+.difficulty-bar-row small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.difficulty-chart-card header > span {
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.difficulty-bars {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.difficulty-bar-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 1fr) 54px 42px;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+}
+
+.difficulty-bar-label {
+  min-width: 0;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.difficulty-bar-track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.difficulty-bar-track span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-deep), var(--accent-2));
+}
+
+.difficulty-bar-row strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.difficulty-bar-row small {
+  color: var(--faint);
+  text-align: right;
 }
 
 /* ---------- Article ---------- */
@@ -4604,6 +4713,10 @@ tbody tr:hover {
   .source-grid,
   .summary-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .difficulty-chart-grid {
+    grid-template-columns: 1fr;
   }
 
   .performance-preview {

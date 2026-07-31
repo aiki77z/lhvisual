@@ -1,18 +1,23 @@
-import type { LeaderboardEntry } from "../../data/leaderboard";
+import type { LeaderboardEntry, SweepName } from "../../data/leaderboard";
 import { LeaderboardBadge } from "./LeaderboardBadge";
 
 type LeaderboardTableProps = {
   entries: LeaderboardEntry[];
+  sweep: SweepName;
 };
 
-export function LeaderboardTable({ entries }: LeaderboardTableProps) {
+export function LeaderboardTable({ entries, sweep }: LeaderboardTableProps) {
+  const primaryHeading = sweep === "model" ? "Model" : "Agent / Loop";
+  const secondaryHeading = sweep === "model" ? "Loop" : "Model";
+
   return (
     <div className="table-frame">
       <table>
         <thead>
           <tr>
             <th>#</th>
-            <th>Model / Loop</th>
+            <th>{primaryHeading}</th>
+            <th>{secondaryHeading}</th>
             <th className="numeric">RR w/o loop</th>
             <th className="numeric">RR w/ loop</th>
             <th className="numeric">TPR w/ loop</th>
@@ -22,21 +27,24 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
           </tr>
         </thead>
         <tbody>
-          {entries.map((e) => (
-            <tr key={e.id}>
+          {entries.map((entry) => (
+            <tr key={entry.id}>
               <td>
-                <span className={e.rank <= 3 ? "rank-badge" : ""}>{e.rank}</span>
+                <span className={entry.rank <= 3 ? "rank-badge" : ""}>{entry.rank}</span>
               </td>
               <td>
-                <strong>{e.model}</strong> · {e.loop}
+                <strong>{sweep === "model" ? entry.model : entry.loop}</strong>
               </td>
-              <td className="numeric">{e.rrBase.toFixed(2)}%</td>
-              <td className="numeric resolved-value">{e.rrLoop.toFixed(2)}%</td>
-              <td className="numeric">{e.tprLoop.toFixed(2)}%</td>
-              <td className="numeric">{e.depth.toFixed(2)}</td>
-              <td className="numeric">{e.tokens.toFixed(2)}M</td>
               <td>
-                {e.oss ? (
+                <span className="muted-table-value">{sweep === "model" ? entry.loop : entry.model}</span>
+              </td>
+              <td className="numeric">{entry.rrBase.toFixed(2)}%</td>
+              <td className="numeric resolved-value">{entry.rrLoop.toFixed(2)}%</td>
+              <td className="numeric">{entry.tprLoop.toFixed(2)}%</td>
+              <td className="numeric">{entry.depth.toFixed(2)}</td>
+              <td className="numeric">{entry.tokens.toFixed(2)}M</td>
+              <td>
+                {entry.oss ? (
                   <LeaderboardBadge tone="info">Open</LeaderboardBadge>
                 ) : (
                   <LeaderboardBadge>Closed</LeaderboardBadge>

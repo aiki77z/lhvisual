@@ -1,4 +1,12 @@
 export type SweepName = "model" | "loop";
+export type DifficultyName = "easy" | "medium" | "hard";
+
+export type DifficultyScore = {
+  difficulty: DifficultyName;
+  resolved: number;
+  total: number;
+  rr: number;
+};
 
 export type LeaderboardEntry = {
   id: string;
@@ -14,12 +22,34 @@ export type LeaderboardEntry = {
   depth: number;
   tokens: number;
   oss: boolean;
+  difficultyScores: DifficultyScore[];
 };
 
 export const sweeps: { id: SweepName; label: string; detail: string }[] = [
   { id: "model", label: "Model sweep", detail: "Fixed loop: Claude Code" },
   { id: "loop", label: "Loop sweep", detail: "Fixed model: gpt-5.4" },
 ];
+
+export const difficultyBuckets: { id: DifficultyName; label: string; total: number }[] = [
+  { id: "easy", label: "Easy", total: 17 },
+  { id: "medium", label: "Medium", total: 43 },
+  { id: "hard", label: "Hard", total: 52 },
+];
+
+function difficultyScores(easyResolved: number, mediumResolved: number, hardResolved: number): DifficultyScore[] {
+  const resolvedByDifficulty: Record<DifficultyName, number> = {
+    easy: easyResolved,
+    medium: mediumResolved,
+    hard: hardResolved,
+  };
+
+  return difficultyBuckets.map((bucket) => ({
+    difficulty: bucket.id,
+    resolved: resolvedByDifficulty[bucket.id],
+    total: bucket.total,
+    rr: (resolvedByDifficulty[bucket.id] / bucket.total) * 100,
+  }));
+}
 
 // RR/TPR reported with and without the outer evaluation loop. Source: paper Table 1 (RQ1).
 export const leaderboardEntries: LeaderboardEntry[] = [
@@ -37,6 +67,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.61,
     tokens: 6.91,
     oss: false,
+    difficultyScores: difficultyScores(10, 13, 5),
   },
   {
     id: "gpt-5-5",
@@ -52,6 +83,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.47,
     tokens: 7.18,
     oss: false,
+    difficultyScores: difficultyScores(9, 10, 4),
   },
   {
     id: "glm-5-1",
@@ -67,6 +99,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.44,
     tokens: 4.37,
     oss: true,
+    difficultyScores: difficultyScores(8, 9, 4),
   },
   {
     id: "deepseek-v4p",
@@ -82,6 +115,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.46,
     tokens: 3.59,
     oss: true,
+    difficultyScores: difficultyScores(8, 9, 4),
   },
   {
     id: "gemini-3-1-pro",
@@ -97,6 +131,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.31,
     tokens: 4.99,
     oss: false,
+    difficultyScores: difficultyScores(7, 7, 2),
   },
   {
     id: "qwen3-6-plus",
@@ -112,6 +147,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.34,
     tokens: 4.25,
     oss: true,
+    difficultyScores: difficultyScores(5, 5, 1),
   },
   {
     id: "kimi-2-6",
@@ -127,6 +163,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.14,
     tokens: 2.02,
     oss: true,
+    difficultyScores: difficultyScores(4, 2, 1),
   },
   {
     id: "grok-4-1-fr",
@@ -142,6 +179,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.15,
     tokens: 1.83,
     oss: false,
+    difficultyScores: difficultyScores(3, 1, 1),
   },
   {
     id: "codex",
@@ -157,6 +195,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.49,
     tokens: 7.94,
     oss: false,
+    difficultyScores: difficultyScores(8, 9, 4),
   },
   {
     id: "claude-code",
@@ -172,6 +211,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.42,
     tokens: 7.03,
     oss: false,
+    difficultyScores: difficultyScores(8, 8, 4),
   },
   {
     id: "github-copilot",
@@ -187,6 +227,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.38,
     tokens: 8.26,
     oss: false,
+    difficultyScores: difficultyScores(7, 7, 3),
   },
   {
     id: "openhands",
@@ -202,6 +243,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.2,
     tokens: 6.75,
     oss: true,
+    difficultyScores: difficultyScores(5, 4, 2),
   },
   {
     id: "swe-agent",
@@ -217,6 +259,7 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.16,
     tokens: 7.18,
     oss: true,
+    difficultyScores: difficultyScores(4, 4, 2),
   },
   {
     id: "mini-swe-agent",
@@ -232,5 +275,6 @@ export const leaderboardEntries: LeaderboardEntry[] = [
     depth: 0.13,
     tokens: 8.86,
     oss: true,
+    difficultyScores: difficultyScores(4, 3, 1),
   },
 ];
