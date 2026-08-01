@@ -1,8 +1,10 @@
 import {
+  abstractParagraphs,
   affiliations,
   authors,
   comparisonRows,
   datasetUrl,
+  introductionBlocks,
   paperUrl,
   repoUrl,
   sources,
@@ -80,18 +82,26 @@ export function AboutPage() {
 
       <section className="article-section about-abstract">
         <p className="section-index">Abstract</p>
-        <p>
-          Coding agent infrastructure is shifting from harness engineering toward
-          loop engineering as LLM-based coding agents are deployed for sustained
-          long-horizon software development. Existing benchmarks often center on
-          localized tasks or emphasize end-state outcomes, offering limited
-          insight into the loop engineering factors that shape sustained
-          execution. LoopsBench represents each task as a dependency DAG over
-          separately testable development units with source-evidenced
-          prerequisite edges. Its flow-aware runtime releases tests along the
-          ready frontier while retaining completed nodes as persistent regression
-          obligations.
-        </p>
+        <div className="about-prose">
+          {abstractParagraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+      </section>
+
+      <section className="article-section">
+        <div className="about-section-heading">
+          <p className="section-index">Introduction</p>
+          <h2>From harness engineering to loop engineering</h2>
+        </div>
+        <div className="about-prose">
+          {introductionBlocks.map((block) => (
+            <p key={block.heading || block.body.slice(0, 48)}>
+              {block.heading ? <strong>{block.heading} </strong> : null}
+              {block.body}
+            </p>
+          ))}
+        </div>
       </section>
 
       <section className="article-section">

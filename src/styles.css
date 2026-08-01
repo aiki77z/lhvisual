@@ -3728,8 +3728,22 @@ tbody tr:hover {
   gap: 30px;
 }
 
-.about-abstract > p:last-child {
+.about-prose {
+  display: grid;
+  gap: 18px;
+  max-width: 860px;
+}
+
+.about-prose p {
   margin: 0;
+  line-height: 1.82;
+}
+
+.about-prose strong {
+  color: var(--text);
+}
+
+.about-abstract .about-prose p {
   font-size: 1.02rem;
 }
 
