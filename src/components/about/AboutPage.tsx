@@ -81,7 +81,9 @@ export function AboutPage() {
       </div>
 
       <section className="article-section about-abstract">
-        <p className="section-index">Abstract</p>
+        <div className="about-section-heading">
+          <p className="section-index">Abstract</p>
+        </div>
         <div className="about-prose">
           {abstractParagraphs.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>

@@ -3723,9 +3723,7 @@ tbody tr:hover {
 }
 
 .about-abstract {
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  gap: 30px;
+  display: block;
 }
 
 .about-prose {
