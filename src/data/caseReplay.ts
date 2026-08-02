@@ -371,8 +371,8 @@ export const runGuideSections = [
     title: "Clone the benchmark",
     body: "Fetch the benchmark repository and install the runner dependencies from the project README. If you use a fork or private mirror, replace the repository URL with that remote.",
     commands: [
-      "git clone https://github.com/schwerli/Long-Horizon-Bench.git",
-      "cd Long-Horizon-Bench",
+      "git clone https://github.com/microsoft/Loopsbench.git",
+      "cd Loopsbench",
       "pip install -r requirements.txt",
     ],
   },
