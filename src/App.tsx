@@ -4,6 +4,7 @@ import { BenchmarkTaskPage } from "./components/benchmarks/BenchmarkTaskPage";
 import { HomePage } from "./components/home/HomePage";
 import { PageShell } from "./components/layout/PageShell";
 import { LeaderboardPage } from "./components/leaderboard/LeaderboardPage";
+import { PipelinePage } from "./components/pipeline/PipelinePage";
 import { RunLoopsBenchPage } from "./components/run/RunLoopsBenchPage";
 import { SubmissionStatusPage } from "./components/submit/SubmissionStatusPage";
 import { SubmitTaskPage } from "./components/submit/SubmitTaskPage";
@@ -18,6 +19,8 @@ export function App() {
     page = <HomePage />;
   } else if (path === "/run" || path === "/run-loopsbench") {
     page = <RunLoopsBenchPage />;
+  } else if (path === "/pipeline") {
+    page = <PipelinePage />;
   } else if (path === "/benchmarks") {
     page = <BenchmarksPage />;
   } else if (path.startsWith("/benchmarks/")) {

@@ -9,6 +9,7 @@ const navItems = [
   { label: "Run", href: "/run" },
   { label: "Benchmarks", href: "/benchmarks" },
   { label: "Leaderboard", href: "/leaderboard" },
+  { label: "Pipeline", href: "/pipeline" },
   { label: "Submit Task", href: "/submit-task" },
   { label: "About", href: "/about" },
   { label: "GitHub", href: repoUrl },
