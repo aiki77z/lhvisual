@@ -1,5 +1,7 @@
 # LoopsBench
 
+[![arXiv](https://img.shields.io/badge/arXiv-2608.00267-b31b1b.svg?logo=arxiv)](https://arxiv.org/abs/2608.00267)
+
 Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**.
 This repository contains the static Vite + React + TypeScript website deployed to GitHub Pages.
 
