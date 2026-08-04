@@ -3,6 +3,8 @@
 Project homepage for **LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation**.
 This repository contains the static Vite + React + TypeScript website deployed to GitHub Pages.
 
+[Live site](https://loopsbench.ai) · [Paper](https://arxiv.org/abs/2608.00267) · [Benchmark source](https://github.com/microsoft/Loopsbench)
+
 ## What lives here
 
 - the public site in `src/`

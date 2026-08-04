@@ -9,6 +9,7 @@ import {
   repoUrl,
   sources,
   stats,
+  websiteRepoUrl,
 } from "../../data/paper";
 
 const findings = [
@@ -26,15 +27,18 @@ const findings = [
   },
 ];
 
-const citation = `@misc{loopsbench2026,
-  title  = {LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation},
-  author = {Li, Han and Fang, Zhemin and Feng, Rili and others},
-  year   = {2026}
+const citation = `@article{li2026loopsbench,
+  title   = {LoopsBench: From Harness Engineering to Loop Engineering in Coding Agent Evaluation},
+  author  = {Li, Han and Fang, Zhemin and Feng, Rili and Zhao, Yingqi and Liu, Jiaheng and Gao, Pengfei and Ye, He and Lin, Dayi and Lin, Qingwei and Rajmohan, Saravan and Zhang, Dongmei},
+  journal = {arXiv preprint arXiv:2608.00267},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2608.00267}
 }`;
 
 const resources = [
   { label: "Paper", href: paperUrl },
   { label: "GitHub", href: repoUrl },
+  { label: "Website source", href: websiteRepoUrl },
   { label: "Dataset", href: datasetUrl },
 ];
 

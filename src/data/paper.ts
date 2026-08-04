@@ -1,6 +1,7 @@
 export const repoUrl = "https://github.com/microsoft/Loopsbench";
-export const paperUrl = "#";
-export const datasetUrl = "#";
+export const websiteRepoUrl = "https://github.com/aiki77z/lhvisual";
+export const paperUrl = "https://arxiv.org/abs/2608.00267";
+export const datasetUrl = `${repoUrl}/tree/main/tasks`;
 
 export const authors = [
   { name: "Han Li", href: "https://openreview.net/profile?id=~Han_Li44" },
@@ -16,7 +17,7 @@ export const authors = [
   { name: "Dongmei Zhang", href: "https://openreview.net/profile?id=~Dongmei_Zhang2" },
 ];
 
-export const affiliations = "Microsoft · Nanjing University · University College London";
+export const affiliations = "Microsoft · Nanjing University · University College London · Shanghai Jiao Tong University";
 
 export const stats = [
   { value: "112", label: "dependency tasks" },
