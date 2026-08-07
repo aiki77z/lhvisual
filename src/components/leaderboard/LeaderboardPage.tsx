@@ -13,6 +13,10 @@ function entryLabel(entry: LeaderboardEntry, sweep: SweepName) {
   return sweep === "model" ? entry.model : entry.loop;
 }
 
+function entryConfig(entry: LeaderboardEntry, sweep: SweepName) {
+  return sweep === "model" ? `agent: ${entry.loop}` : `model: ${entry.model}`;
+}
+
 function difficultyScore(entry: LeaderboardEntry, difficulty: DifficultyName) {
   return entry.difficultyScores.find((score) => score.difficulty === difficulty);
 }
@@ -27,7 +31,10 @@ function DifficultyScoreCharts({ entries, sweep }: { entries: LeaderboardEntry[]
     <section className="difficulty-score-section" aria-label="Resolve rate by task difficulty">
       <div className="section-heading">
         <h2>Difficulty breakdown</h2>
-        <p>{sweep === "model" ? "Models" : "Agents"} scored separately on easy, medium, and hard tasks</p>
+        <p>
+          {sweep === "model" ? "Models" : "Agents"} scored separately on easy, medium, and hard tasks; each row labels
+          the full evaluation configuration.
+        </p>
       </div>
 
       <div className="difficulty-chart-grid">
@@ -47,12 +54,15 @@ function DifficultyScoreCharts({ entries, sweep }: { entries: LeaderboardEntry[]
                 const value = score?.rr ?? 0;
                 return (
                   <div className="difficulty-bar-row" key={`${bucket.id}-${entry.id}`}>
-                    <span className="difficulty-bar-label">{entryLabel(entry, sweep)}</span>
+                    <span className="difficulty-bar-label">
+                      <strong>{entryLabel(entry, sweep)}</strong>
+                      <small>{entryConfig(entry, sweep)}</small>
+                    </span>
                     <div className="difficulty-bar-track" aria-hidden="true">
                       <span style={{ width: `${Math.max(2, (value / maxScore) * 100)}%` }} />
                     </div>
                     <strong>{value.toFixed(1)}%</strong>
-                    <small>
+                    <small className="difficulty-bar-count">
                       {score?.resolved ?? 0}/{score?.total ?? bucket.total}
                     </small>
                   </div>

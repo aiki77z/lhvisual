@@ -4143,8 +4143,8 @@ tbody tr:hover {
 
 .difficulty-chart-card p,
 .difficulty-chart-card header > span,
-.difficulty-bar-label,
-.difficulty-bar-row small {
+.difficulty-bar-label small,
+.difficulty-bar-count {
   color: var(--muted);
   font-family: var(--mono);
   font-size: 0.72rem;
@@ -4163,15 +4163,29 @@ tbody tr:hover {
 
 .difficulty-bar-row {
   display: grid;
-  grid-template-columns: minmax(96px, 0.9fr) minmax(86px, 1fr) 54px 42px;
+  grid-template-columns: minmax(128px, 1.05fr) minmax(86px, 1fr) 54px 42px;
   gap: 9px;
   align-items: center;
   min-width: 0;
 }
 
 .difficulty-bar-label {
+  display: grid;
+  gap: 2px;
   min-width: 0;
+}
+
+.difficulty-bar-label strong {
   color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.difficulty-bar-label small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4199,7 +4213,7 @@ tbody tr:hover {
   text-align: right;
 }
 
-.difficulty-bar-row small {
+.difficulty-bar-count {
   color: var(--faint);
   text-align: right;
 }
