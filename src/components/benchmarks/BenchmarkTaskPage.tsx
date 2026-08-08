@@ -56,18 +56,22 @@ function buildUsageOptions(task: BenchmarkTaskDetail): UsageOption[] {
     {
       key: "agent",
       label: "Agent run",
-      command: `lhb run \\
-  --agent your-agent \\
+      command: `loopsbench run \\
+  --dataset-path tasks \\
   --task-id ${taskName} \\
-  --dataset-path tasks`,
+  --agent codex \\
+  --model copilot/<model-name> \\
+  --model-config model-env.yaml \\
+  --docker-image-strategy local-build`,
     },
     {
       key: "oracle",
       label: "Oracle verify",
-      command: `lhb run \\
-  --agent oracle \\
+      command: `loopsbench run \\
+  --dataset-path tasks \\
   --task-id ${taskName} \\
-  --dataset-path tasks`,
+  --agent oracle \\
+  --docker-image-strategy local-build`,
     },
   ];
 }
